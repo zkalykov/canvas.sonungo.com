@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+google-cloud-firestore
+python-dotenv
+python-telegram-bot
+google-cloud-kms
+canvasapi
+requests
