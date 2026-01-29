@@ -38,10 +38,15 @@ def read_root():
 
 @app.get("/check_connection")
 def check_connection():
-    db = get_db()
-    collections = db.collections()
-    next(collections, None) 
-    return {"status": "ok", "message": "Connected to Firestore"}
+    try:
+        db = get_db()
+        # Verify connectivity by fetching list of collections (lazy, so iterate once)
+        collections = db.collections()
+        next(collections, None) 
+        return {"status": "ok", "message": "Connected to Firestore"}
+    except Exception as e:
+        print(f"Firestore Connection Error: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.api_route("/check_reminder", methods=["GET", "POST"])
 async def check_reminders_handler(request: Request):
