@@ -245,9 +245,23 @@ async def assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     docs = db.collection("homeworks").where(field_path="telegram_id", op_string="==", value=user_id).stream()
     
     found_any = False
+    now = datetime.now().astimezone()
+    
     for doc in docs:
-        found_any = True
         hw = doc.to_dict()
+        
+        # Filter: Skip if deadline passed by > 1 hour
+        try:
+            raw_deadline = hw.get('deadline')
+            if raw_deadline:
+                 dt_utc = datetime.fromisoformat(raw_deadline.replace('Z', '+00:00'))
+                 # If now is greater than deadline + 1 hour (3600 seconds)
+                 if (now - dt_utc).total_seconds() > 3600:
+                     continue
+        except Exception:
+            pass # If parse fails, show it anyway just in case
+            
+        found_any = True
         
         msg_text, reply_markup = format_assignment_message(hw)
         await update.message.reply_text(msg_text, parse_mode='HTML', reply_markup=reply_markup)
