@@ -1,6 +1,8 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
+from telegram import Update
 from db import get_db
 from telegram_bot import get_application
 from retrieve_canvas_data import check_and_send_reminders
@@ -17,19 +19,41 @@ async def lifespan(app: FastAPI):
     await bot_app.initialize()
     await bot_app.start()
     
-    # Start polling in a non-blocking way
-    # drop_pending_updates=True is often good for development to avoid processing old messages, 
-    # but allowed_updates=Update.ALL_TYPES is safer default.
-    await bot_app.updater.start_polling(drop_pending_updates=True)
+    webhook_url = os.getenv("WEBHOOK_URL")
+    
+    if webhook_url:
+        # Webhook Mode (Cloud Run)
+        # Ensure URL has no trailing slash before appending path
+        webhook_url = webhook_url.rstrip("/")
+        await bot_app.bot.set_webhook(url=f"{webhook_url}/webhook")
+        print(f"Webhook set to {webhook_url}/webhook")
+    else:
+        # Polling Mode (Local Dev)
+        print("WEBHOOK_URL not found, starting polling...")
+        await bot_app.updater.start_polling(drop_pending_updates=True)
     
     yield
     
     # Shutdown logic
-    await bot_app.updater.stop()
+    if not webhook_url:
+        await bot_app.updater.stop()
+        
     await bot_app.stop()
     await bot_app.shutdown()
 
 app = FastAPI(lifespan=lifespan)
+
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    bot_app = request.app.state.bot_app
+    data = await request.json()
+    try:
+        update = Update.de_json(data, bot_app.bot)
+        if update:
+             await bot_app.process_update(update)
+    except Exception as e:
+        print(f"Webhook error: {e}")
+    return Response(content="OK", status_code=200)
 
 @app.get("/")
 def read_root():
