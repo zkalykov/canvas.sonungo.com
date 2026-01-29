@@ -95,7 +95,8 @@ async def handle_university_selection(update: Update, context: ContextTypes.DEFA
     # Add buttons: Search Again, and Find Token (link to settings)
     keyboard = [
         [InlineKeyboardButton("Search Again / Change University", callback_data="SEARCH_AGAIN")],
-        [InlineKeyboardButton("Find Token", url=profile_url)]
+        [InlineKeyboardButton("Find Token", url=profile_url)],
+        [InlineKeyboardButton("Learn how to get Token", url="https://canvas.sonungo.com/generate_new_token")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -161,12 +162,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Connected: {university_name} - {user_canvas_name}")
         
         # Trigger initial sync
-        await update.message.reply_text("Syncing your homeworks for the next 24 hours...")
-        count = await sync_user_data(user_id)
-        if count > 0:
-             await update.message.reply_text(f"Found {count} assignments due soon! check /assignments")
-        else:
-             await update.message.reply_text("No 24h deadline assignments found right now.")
+        await sync_user_data(user_id)
              
         return ConversationHandler.END
     else:
@@ -313,6 +309,22 @@ async def handle_notification_toggle(update: Update, context: ContextTypes.DEFAU
     else:
         await query.answer("Assignment not found.", show_alert=True)
 
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    about_text = (
+        "<b>Canvas Bot</b>\n\n"
+        "This bot helps you stay on top of your Canvas assignments.\n\n"
+        "<b>Data We Save:</b>\n"
+        "• Telegram ID (to identify you)\n"
+        "• Canvas URL (to convert deadlines)\n"
+        "• Homework Data (Name, Course, Deadline)\n\n"
+        "<b>Security:</b>\n"
+        "• Your <b>Canvas Token</b> is encrypted via <b>Google Cloud KMS</b>.\n"
+        "• It is decrypted <i>only</i> when syncing assignments and immediately discarded.\n"
+        "• Even the developer cannot decrypt or see your token."
+    )
+    keyboard = [[InlineKeyboardButton("Visit Website", url="https://canvas.sonungo.com")]]
+    await update.message.reply_text(about_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+
 async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("Delete my Data", callback_data="SETTINGS_DEL_CONFIRM")],
@@ -442,6 +454,7 @@ def get_application():
     application = ApplicationBuilder().token(TOKEN).build()
     
     application.add_handler(CommandHandler("assignments", assignments_command))
+    application.add_handler(CommandHandler("about", about_command))
     application.add_handler(CommandHandler("settings", settings_command))
     application.add_handler(CallbackQueryHandler(handle_notification_toggle, pattern="^TOGGLE_NOTIF_"))
     application.add_handler(CallbackQueryHandler(handle_settings_callback, pattern="^SETTINGS_"))
