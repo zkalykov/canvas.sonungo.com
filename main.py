@@ -74,6 +74,13 @@ def check_connection():
 
 @app.api_route("/check_reminder", methods=["GET", "POST"])
 async def check_reminders_handler(request: Request):
+    # Security Check
+    expected_secret = os.getenv("SCHEDULER_SECRET")
+    if expected_secret:
+        auth_header = request.headers.get("X-Scheduler-Secret")
+        if not auth_header or auth_header != expected_secret:
+            return Response(content="Forbidden", status_code=403)
+
     bot_app = getattr(request.app.state, "bot_app", None)
     if not bot_app:
         return {"status": "error", "message": "Bot not initialized"}
