@@ -187,9 +187,9 @@ def format_assignment_message(hw):
         # Parse UTC string (Canvas usually sends 'Z' at the end)
         dt_utc = datetime.fromisoformat(raw_deadline.replace('Z', '+00:00'))
         # Convert to local system time
-        dt_local = dt_utc.astimezone()
-        # Format nicely: "Wednesday, Jan 28 at 11:59 PM"
-        formatted_deadline = dt_local.strftime("%A, %b %d at %I:%M %p")
+        dt_local = dt_utc.astimezone(ZoneInfo("America/Chicago"))
+        # Format nicely: "Wednesday, Jan 28 at 11:59 PM (CT)"
+        formatted_deadline = dt_local.strftime("%A, %b %d at %I:%M %p (CT)")
         
         # Calculate time remaining
         now = datetime.now().astimezone()
