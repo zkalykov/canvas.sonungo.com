@@ -10,6 +10,7 @@ from canvas_initialize import verify_canvas_token, encrypt_token, search_canvas_
 from retrieve_canvas_data import sync_user_data
 import warnings
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # Filter out the specific PTB warning about CallbackQueryHandler
 warnings.filterwarnings("ignore", category=PTBUserWarning)
