@@ -61,6 +61,7 @@ async def handle_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE
         
     # Limit to top 5
     top_results = results[:5]
+    context.user_data['search_results'] = top_results # Save for lookup later
     
     keyboard = []
     for account in top_results:
@@ -71,7 +72,6 @@ async def handle_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Please select your university:", reply_markup=reply_markup)
     
-    
     return WAITING_FOR_SEARCH_QUERY
 
 async def handle_university_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -79,12 +79,18 @@ async def handle_university_selection(update: Update, context: ContextTypes.DEFA
     await query.answer()
     
     domain = query.data
-    # We might want to get the name too, but we only passed domain.
-    # We can just say "Selected".
-    
     context.user_data['canvas_url'] = domain
     
-    await query.edit_message_text(text=f"Selected University Domain: {domain}")
+    # Retrieve name from saved search results
+    search_results = context.user_data.get('search_results', [])
+    selected_account = next((item for item in search_results if item['domain'] == domain), None)
+    
+    if selected_account:
+        display_text = f"<b>Selected University:</b>\n{selected_account['name']}\n{domain}"
+    else:
+        display_text = f"<b>Selected University Domain:</b>\n{domain}"
+        
+    await query.edit_message_text(text=display_text, parse_mode='HTML')
     
     # Construct profile settings URL
     profile_url = domain
@@ -92,17 +98,21 @@ async def handle_university_selection(update: Update, context: ContextTypes.DEFA
         profile_url = f"https://{profile_url}"
     profile_url = f"{profile_url.rstrip('/')}/profile/settings"
     
-    # Add buttons: Search Again, and Find Token (link to settings)
+    # Add buttons
     keyboard = [
-        [InlineKeyboardButton("Search Again / Change University", callback_data="SEARCH_AGAIN")],
-        [InlineKeyboardButton("Find Token", url=profile_url)],
-        [InlineKeyboardButton("Learn how to get Token", url="https://canvas.sonungo.com/generate_new_token")]
+        [InlineKeyboardButton("Edit / Change University", callback_data="SEARCH_AGAIN")],
+        [InlineKeyboardButton("How to take Canvas Token", url="https://canvas.sonungo.com")],
+        [InlineKeyboardButton("Privacy and Policy", url="https://canvas.sonungo.com")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await context.bot.send_message(
         chat_id=update.effective_chat.id, 
-        text="Great! Now, please send me your <b>Canvas Token</b>.",
+        text=(
+            f"Please enter your <b>Canvas Token</b> in chat.\n\n"
+            f"Link: {profile_url}\n\n"
+            "<i>If you don't know how to get your token, please click the 'How to take Canvas Token' button below.</i>"
+        ),
         reply_markup=reply_markup,
         parse_mode='HTML'
     )
@@ -146,6 +156,12 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if result:
         university_name, user_canvas_name = result
         
+        # specific fix: try to use the official name from search if available
+        search_results = context.user_data.get('search_results', [])
+        cached_school = next((item for item in search_results if item['domain'] == canvas_url), None)
+        if cached_school:
+            university_name = cached_school['name']
+        
         # Encrypt token
         encrypted_token = encrypt_token(token_text)
         
@@ -162,7 +178,13 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Connected: {university_name} - {user_canvas_name}")
         
         # Trigger initial sync
-        await sync_user_data(user_id)
+        await update.message.reply_text("Syncing your assignments...")
+        count = await sync_user_data(user_id)
+        
+        if count > 0:
+             await update.message.reply_text(f"You have {count} upcoming assignment(s) due in the next 24 hours.")
+        else:
+             await update.message.reply_text("You have no assignments due in the next 24 hours.")
              
         return ConversationHandler.END
     else:
