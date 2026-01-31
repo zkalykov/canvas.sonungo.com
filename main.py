@@ -45,7 +45,7 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(lifespan=lifespan)
 
-app.mount("/media", StaticFiles(directory="media"), name="media")
+app.mount("/media", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "media")), name="media")
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
@@ -61,19 +61,19 @@ async def telegram_webhook(request: Request):
 
 @app.get("/get_canvas_token")
 def read_get_token():
-    return FileResponse("./pages/get_canvas_token.html")
+    return FileResponse(os.path.join(os.path.dirname(__file__), "pages/get_canvas_token.html"))
 
 @app.get("/")
 def read_root():
-    return FileResponse("./pages/index.html")
+    return FileResponse(os.path.join(os.path.dirname(__file__), "pages/index.html"))
 
 @app.get("/about")
 def read_about():
-    return FileResponse("./pages/about.html")
+    return FileResponse(os.path.join(os.path.dirname(__file__), "pages/about.html"))
 
 @app.get("/github")
 def read_github():
-    return FileResponse("./pages/github.html")
+    return FileResponse(os.path.join(os.path.dirname(__file__), "pages/github.html"))
 
 
 @app.get("/check_connection")
