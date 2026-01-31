@@ -1,8 +1,7 @@
-from db import get_db
-from canvas_initialize import decrypt_token, get_upcoming_assignments
-import asyncio
+from canvasapi.exceptions import InvalidAccessToken
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-async def sync_user_data(user_id: str, db=None) -> int:
+async def sync_user_data(user_id: str, db=None, bot=None) -> int:
     """
     Syncs homeworks for a single user.
     Returns the number of assignments synced.
@@ -17,6 +16,11 @@ async def sync_user_data(user_id: str, db=None) -> int:
         return 0
         
     data = doc.to_dict()
+    
+    # Check if token is already marked invalid
+    if data.get("canvas_token_status") == "invalid":
+        return 0
+        
     encrypted_token = data.get("canvas_token")
     canvas_url = data.get("canvas_url")
     
@@ -80,11 +84,38 @@ async def sync_user_data(user_id: str, db=None) -> int:
             count += 1
             
         return count
+        return count
+
+    except InvalidAccessToken:
+        # Mark as invalid to prevent future checks
+        user_ref.update({"canvas_token_status": "invalid"})
+        
+        # Notify user if bot instance is available
+        if bot:
+            try:
+                keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=(
+                        "<b>Canvas Token Invalid</b>\n\n"
+                        "Your Canvas token has expired or is no longer valid. "
+                        "We have paused syncing your assignments.\n\n"
+                        "Please update your token to resume."
+                    ),
+                    parse_mode='HTML',
+                    reply_markup=reply_markup
+                )
+            except Exception:
+                pass # Fail silently if message send fails
+        return 0
+
     except Exception:
         # Fail silently for security (no logging of token errors here either)
         return 0
 
-async def retrieve_all_canvas_data() -> bool:
+async def retrieve_all_canvas_data(bot=None) -> bool:
     """
     Iterates through all users and updates their homework data.
     Returns True if all jobs finish (even if some fail individually, the job 'finished').
@@ -99,7 +130,7 @@ async def retrieve_all_canvas_data() -> bool:
         tasks = []
         for user_doc in users:
             user_id = user_doc.id
-            tasks.append(sync_user_data(user_id, db))
+            tasks.append(sync_user_data(user_id, db, bot))
             
         # Run all syncs concurrently
         if tasks:
@@ -116,7 +147,7 @@ async def check_and_send_reminders(bot):
     3. Sends notifications if thresholds are met.
     """
     # 1. Sync
-    await retrieve_all_canvas_data()
+    await retrieve_all_canvas_data(bot)
     
     db = get_db()
     # 2. Iterate DB

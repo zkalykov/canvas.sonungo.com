@@ -119,6 +119,59 @@ async def handle_university_selection(update: Update, context: ContextTypes.DEFA
     
     return WAITING_FOR_TOKEN
 
+async def handle_update_token_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = str(update.effective_user.id)
+    db = get_db()
+    
+    # Check if user exists
+    user_ref = db.collection("users").document(user_id)
+    doc = user_ref.get()
+    
+    if not doc.exists:
+        await query.message.reply_text("Could not find your account. Please type /start to register.")
+        return ConversationHandler.END
+        
+    data = doc.to_dict()
+    canvas_url = data.get("canvas_url")
+    
+    if not canvas_url:
+        await query.message.reply_text("University information missing. Please type /start to register.")
+        return ConversationHandler.END
+        
+    # Store canvas_url in context for the next step (handle_token)
+    context.user_data['canvas_url'] = canvas_url
+    
+    # Construct profile settings URL
+    profile_url = canvas_url
+    if not profile_url.startswith("http"):
+        profile_url = f"https://{profile_url}"
+    profile_url = f"{profile_url.rstrip('/')}/profile/settings"
+    
+    # Add buttons
+    keyboard = [
+        [InlineKeyboardButton("Edit / Change University", callback_data="SEARCH_AGAIN")],
+        [InlineKeyboardButton("How to take Canvas Token", url="https://canvas.sonungo.com")],
+        [InlineKeyboardButton("Privacy and Policy", url="https://canvas.sonungo.com")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, 
+        text=(
+            f"<b>Update Canvas Token</b>\n\n"
+            f"Please enter your new <b>Canvas Token</b> in chat.\n\n"
+            f"Link: {profile_url}\n\n"
+            "<i>If you don't know how to get your token, please click the 'How to take Canvas Token' button below.</i>"
+        ),
+        reply_markup=reply_markup,
+        parse_mode='HTML'
+    )
+    
+    return WAITING_FOR_TOKEN
+
 async def handle_max_speed_delete(message):
     try:
         await message.delete()
@@ -171,7 +224,8 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "telegram_id": user_id,
             "canvas_token": encrypted_token,
             "canvas_url": canvas_url,
-            "notification": "on"
+            "notification": "on",
+            "canvas_token_status": "valid" # Reset status
         }
         db.collection("users").document(user_id).set(user_data)
         
@@ -485,7 +539,10 @@ def get_application():
     image_filter = filters.PHOTO
     
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
+        entry_points=[
+            CommandHandler("start", start),
+            CallbackQueryHandler(handle_update_token_start, pattern="^UPDATE_TOKEN$")
+        ],
         states={
             WAITING_FOR_SEARCH_QUERY: [
                 MessageHandler(image_filter, delete_image),

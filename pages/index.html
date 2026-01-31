@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coming Soon | Canvas</title>
+    <title>Canvas Reminder Bot</title>
+    <link rel="icon" type="image/png" href="/media/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -26,11 +27,18 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #0f0f10;
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        body::-webkit-scrollbar {
+            display: none;
         }
         
         /* Full Page Redish Gradient */
         .gradient-bg {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
@@ -44,15 +52,355 @@
         }
     </style>
 </head>
-<body class="text-white min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+<body class="text-white min-h-screen flex flex-col items-center justify-center relative overflow-x-hidden">
     
     <div class="gradient-bg"></div>
 
-    <main class="relative z-10 text-center px-4">
-        <h1 class="text-5xl md:text-7xl font-normal tracking-tight text-gray-100 placeholder-opacity-100 drop-shadow-2xl">
-            Coming Soon
-        </h1>
+    <main class="relative z-10 w-full">
+        <!-- Hero Section -->
+        <section class="min-h-screen flex flex-col items-center justify-center">
+            <div class="w-full max-w-7xl px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-12 md:gap-16">
+                <!-- Left Side: Text -->
+                <div class="w-full md:w-1/2 text-center md:text-left space-y-6 md:space-y-8">
+                    <div class="flex items-center justify-center md:justify-start">
+                        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm transition-colors hover:bg-white/10 mb-2">
+                            <span class="relative flex h-2 w-2">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            <span class="text-sm font-medium text-gray-300 tracking-wide">Canvas Reminder Bot</span>
+                        </div>
+                    </div>
+                    <h1 class="text-4xl sm:text-5xl md:text-7xl font-normal tracking-tight text-gray-100 placeholder-opacity-100 drop-shadow-2xl leading-tight">
+                        Don't miss your homework deadline again.
+                    </h1>
+                    
+                    <p class="text-base sm:text-lg text-gray-400 font-light opacity-80 max-w-lg mx-auto md:mx-0">
+                        Get notified about your deadlines on Canvas.
+                    </p>
+
+                    <div class="flex justify-center md:justify-start pt-4">
+                        <a href="https://t.me/canvas_sonungo_com_bot" target="_blank" class="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-white text-black font-medium hover:bg-gray-200 transition-colors text-lg shadow-lg shadow-white/5">
+                            Get Started
+                            <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H7M17 7V17"></path></svg>
+                        </a>
+                    </div>
+
+
+                </div>
+
+                <!-- Right Side: Video -->
+                <div class="w-full md:w-1/2 flex justify-center md:justify-end">
+                     <video autoplay loop muted playsinline class="w-full max-w-2xl rounded-xl shadow-2xl border border-white/10 bg-black/50">
+                        <!-- Replace 'path/to/video.mp4' with your actual video file -->
+                        <source src="/media/demo_token_video.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
+            
+            <!-- Scroll Indicator -->
+            <div class="absolute bottom-10 animate-bounce">
+                <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                </svg>
+            </div>
+        </section>
+
+        <!-- How it Works Section -->
+        <section id="about" class="min-h-screen flex items-center justify-center">
+
+            <div class="max-w-7xl px-6 py-16 md:py-24 w-full">
+                <div class="text-center mb-12 md:mb-16">
+                    <h2 class="text-3xl md:text-5xl font-semibold mb-4 md:mb-6 tracking-tight">Intelligent Automation</h2>
+                    <p class="text-gray-400 max-w-2xl mx-auto text-base md:text-lg font-light leading-relaxed">
+                        Canvas Reminder is a Telegram bot designed to keep you on top of your coursework without the hassle.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
+                    <div class="space-y-6 md:space-y-8">
+                        <div class="p-6 md:p-8 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-300">
+                            <h3 class="text-xl md:text-2xl font-medium mb-3 md:mb-4 text-white">Smart Notifications</h3>
+                            <p class="text-gray-400 leading-relaxed text-sm md:text-base">
+                                It sends you notifications <strong>only</strong> if you haven't completed your homework. Once you submit, the reminders stop automatically.
+                            </p>
+                        </div>
+                        
+                        <div class="p-6 md:p-8 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-300">
+                            <h3 class="text-xl md:text-2xl font-medium mb-3 md:mb-4 text-white">No Manual Setup</h3>
+                            <p class="text-gray-400 leading-relaxed text-sm md:text-base">
+                                Forget about setting schedules or alarms. The bot syncs directly with Canvas to know exactly when your homework is due and whether you've done it.
+                            </p>
+                        </div>
+                    </div>
+                     <!-- Placeholder for illustration or graphic -->
+                    <div class="relative w-full h-80 md:h-full min-h-[300px] md:min-h-[400px] flex items-center justify-center rounded-2xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 overflow-hidden mt-8 md:mt-0">
+                        <div class="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+                        <div class="text-center p-8">
+                            <div class="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/10 mb-4 md:mb-6 backdrop-blur-md border border-white/20">
+                                <svg class="w-8 h-8 md:w-10 md:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h4 class="text-lg md:text-xl font-medium text-white mb-2">Syncs 24/7</h4>
+                            <p class="text-xs md:text-sm text-gray-500">Real-time status updates</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Security Section -->
+        <section id="privacy" class="min-h-screen flex items-center justify-center">
+            <div class="max-w-7xl px-6 py-16 md:py-24 w-full">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-5xl font-semibold mb-6 tracking-tight">Your Data, Secured</h2>
+                    <p class="text-gray-400 max-w-2xl mx-auto text-lg font-light leading-relaxed">
+                        We believe privacy is a fundamental right, not a feature.
+                    </p>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="p-8 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-300">
+                        <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-6 text-blue-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-medium mb-3 text-white">Google Cloud KMS Encryption</h3>
+                        <p class="text-gray-400 leading-relaxed text-sm">
+                            Your Canvas tokens are encrypted using <span class="text-white font-medium">Google Cloud KMS</span> before ever touching our database.
+                        </p>
+                    </div>
+
+                    <div class="p-8 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-300">
+                        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center mb-6 text-green-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-medium mb-3 text-white">Minimal Data Retention</h3>
+                        <p class="text-gray-400 leading-relaxed text-sm">
+                            We only store what's absolutely necessary to check your deadlines. Once you delete the bot, your data is permanently erased from our servers instantly.
+                        </p>
+                    </div>
+
+                    <div class="p-8 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-300">
+                        <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mb-6 text-purple-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-medium mb-3 text-white">Open Source</h3>
+                        <p class="text-gray-400 leading-relaxed text-sm">
+                            Don't just take our word for it. Our entire codebase is open source on GitHub. You can audit exactly how we handle your data yourself.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- FAQ Section -->
+        <section id="faq" class="min-h-screen flex items-center justify-center">
+            <div class="max-w-3xl px-6 py-16 md:py-24 w-full">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl md:text-5xl font-semibold mb-6 tracking-tight">Frequently Asked Questions</h2>
+                    <p class="text-gray-400 text-lg font-light leading-relaxed">
+                        Got questions? We've got answers.
+                    </p>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- FAQ Item 1 -->
+                    <div class="border border-white/10 rounded-2xl bg-white/5 overflow-hidden transition-all duration-300 hover:bg-white/10">
+                        <button class="w-full px-6 py-5 text-left flex items-center justify-between focus:outline-none" onclick="toggleFaq(this)">
+                            <span class="text-lg font-medium text-white">How do I get my Canvas Token?</span>
+                            <svg class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                            <div class="px-6 pb-6 text-gray-400 leading-relaxed">
+                                You can generate a new token in your Canvas settings under "Approved Integrations". Scroll down to "+ New Access Token", name it (e.g., "Telegram Bot"), and copy the token provided.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FAQ Item 2 -->
+                    <div class="border border-white/10 rounded-2xl bg-white/5 overflow-hidden transition-all duration-300 hover:bg-white/10">
+                        <button class="w-full px-6 py-5 text-left flex items-center justify-between focus:outline-none" onclick="toggleFaq(this)">
+                            <span class="text-lg font-medium text-white">Is my data safe?</span>
+                            <svg class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                            <div class="px-6 pb-6 text-gray-400 leading-relaxed">
+                                Absolutely. Your Canvas token is encrypted using Google Cloud KMS before being stored. We only use it to check your assignments and nothing else. You can revoke the token at any time from your Canvas settings. We also use Google Cloud Services for maximum security.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FAQ Item 3 -->
+                    <div class="border border-white/10 rounded-2xl bg-white/5 overflow-hidden transition-all duration-300 hover:bg-white/10">
+                        <button class="w-full px-6 py-5 text-left flex items-center justify-between focus:outline-none" onclick="toggleFaq(this)">
+                            <span class="text-lg font-medium text-white">Does it work with any university?</span>
+                            <svg class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                            <div class="px-6 pb-6 text-gray-400 leading-relaxed">
+                                Yes! As long as your institution uses Canvas LMS (most do), it will work perfectly. You just need to search for your university name in the bot.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FAQ Item 4 -->
+                    <div class="border border-white/10 rounded-2xl bg-white/5 overflow-hidden transition-all duration-300 hover:bg-white/10">
+                        <button class="w-full px-6 py-5 text-left flex items-center justify-between focus:outline-none" onclick="toggleFaq(this)">
+                            <span class="text-lg font-medium text-white">How much does it cost?</span>
+                            <svg class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                            <div class="px-6 pb-6 text-gray-400 leading-relaxed">
+                                Nothing. Canvas Reminder is a free, open-source project created to help students stay organized. No hidden fees, no ads.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-12 text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm transition-colors hover:bg-white/10">
+                    <p class="text-gray-400 text-lg">
+                        Have other questions? Reach out to <a href="mailto:zkalykov@na.edu" class="text-white hover:underline font-medium transition-colors">zkalykov@na.edu</a>
+                    </p>
+                </div>
+
+                <div class="mt-4 text-center">
+                     <a href="https://t.me/canvas_sonungo_com_bot" target="_blank" class="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-white text-black font-medium hover:bg-gray-200 transition-colors text-lg shadow-lg shadow-white/5">
+                        Get Started
+                        <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H7M17 7V17"></path></svg>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="w-full py-32 bg-gradient-to-b from-transparent via-black/50 to-black relative z-10">
+            <div class="max-w-7xl mx-auto px-6 text-center">
+                <p class="text-gray-500 font-light text-sm">
+                    © Canvas Reminder Bot. Built by <a href="https://zhyrgalbek.me" class="hover:text-white transition-colors">zhyrgalbek.me</a>.
+                </p>
+                <div class="mt-8 h-px w-full max-w-xs mx-auto bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+            </div>
+        </footer>
     </main>
+
+    <!-- Floating Bottom Navbar -->
+    <div class="fixed bottom-6 md:bottom-8 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+        <div class="relative pointer-events-auto max-w-full flex items-center rounded-full overflow-hidden shadow-2xl border border-white/10 bg-[#0a0a0a]/80 backdrop-blur-xl">
+            
+            <!-- Mobile Navigation -->
+            <nav id="mobile-nav" class="max-w-full overflow-x-auto flex items-center gap-1 p-1.5" style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
+                <!-- Hide scrollbar for Webkit -->
+                <style>
+                    nav::-webkit-scrollbar { display: none; }
+                </style>
+                
+                <a href="/" class="shrink-0 px-5 py-2.5 rounded-full text-sm font-medium text-white bg-white/10 hover:bg-white/20 active:scale-95 transition-all duration-200 border border-white/5 whitespace-nowrap">
+                    Home
+                </a>
+
+
+                
+                <div class="w-px h-6 bg-white/10 mx-1 shrink-0"></div>
+                
+                <a href="/get_canvas_token" class="shrink-0 px-4 py-2.5 rounded-full text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all duration-200 whitespace-nowrap">
+                    How to get Canvas Token
+                </a>
+                
+                <a href="/about" class="shrink-0 px-4 py-2.5 rounded-full text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all duration-200 whitespace-nowrap">
+                    About
+                </a>
+
+                <a href="/github" class="shrink-0 px-4 py-2.5 rounded-full text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all duration-200 whitespace-nowrap">
+                    Github
+                </a>
+
+            </nav>
+
+            <!-- Left Scroll Button (Mobile Only) -->
+            <button id="scroll-left-btn" onclick="scrollNav('left')" class="md:hidden absolute left-0 top-0 bottom-0 z-10 w-12 bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a] to-transparent flex items-center justify-center text-white/70 hover:text-white transition-opacity duration-200 opacity-0 pointer-events-none" aria-label="Scroll left">
+                <svg class="w-6 h-6 drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+
+            <!-- Right Scroll Button (Mobile Only) -->
+            <button id="scroll-right-btn" onclick="scrollNav('right')" class="md:hidden absolute right-0 top-0 bottom-0 z-10 w-12 bg-gradient-to-l from-[#0a0a0a] via-[#0a0a0a] to-transparent flex items-center justify-center text-white/70 hover:text-white transition-opacity duration-200" aria-label="Scroll right">
+                <svg class="w-6 h-6 drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const nav = document.getElementById('mobile-nav');
+            const leftBtn = document.getElementById('scroll-left-btn');
+            const rightBtn = document.getElementById('scroll-right-btn');
+
+            if (!nav || !leftBtn || !rightBtn) return;
+
+            function updateScrollButtons() {
+                // Left button logic
+                if (nav.scrollLeft > 10) {
+                    leftBtn.classList.remove('opacity-0', 'pointer-events-none');
+                } else {
+                    leftBtn.classList.add('opacity-0', 'pointer-events-none');
+                }
+
+                // Right button logic
+                // Use explicit logic to check if we can scroll more
+                // Need a buffer of 1or 2 pixels for float math
+                if (nav.scrollWidth - nav.scrollLeft - nav.clientWidth > 2) {
+                    rightBtn.classList.remove('opacity-0', 'pointer-events-none');
+                } else {
+                    rightBtn.classList.add('opacity-0', 'pointer-events-none');
+                }
+            }
+
+            // Initial check
+            // Need a slight delay for layout to settle (sometimes width is 0 immediately)
+            setTimeout(updateScrollButtons, 100);
+
+            // On scroll
+            nav.addEventListener('scroll', updateScrollButtons);
+            
+            // On resize
+            window.addEventListener('resize', updateScrollButtons);
+        });
+
+        function scrollNav(direction) {
+            const nav = document.getElementById('mobile-nav');
+            if (nav) {
+                const scrollAmount = 150; 
+                nav.scrollBy({
+                    left: direction === 'left' ? -scrollAmount : scrollAmount,
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        function toggleFaq(button) {
+            const content = button.nextElementSibling;
+            const icon = button.querySelector('svg');
+            
+            // Close other open FAQs
+            const allContents = document.querySelectorAll('.max-h-0');
+            /* Optional: Close others when opening one */
+            /*
+            document.querySelectorAll('button[onclick="toggleFaq(this)"]').forEach(btn => {
+                if (btn !== button) {
+                    btn.nextElementSibling.style.maxHeight = null;
+                    btn.querySelector('svg').classList.remove('rotate-180');
+                }
+            });
+            */
+
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
+                icon.classList.remove('rotate-180');
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+                icon.classList.add('rotate-180');
+            }
+        }
+    </script>
 
 </body>
 </html>

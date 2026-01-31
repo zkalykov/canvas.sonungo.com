@@ -41,7 +41,11 @@ async def lifespan(app: FastAPI):
     await bot_app.stop()
     await bot_app.shutdown()
 
+from fastapi.staticfiles import StaticFiles
+
 app = FastAPI(lifespan=lifespan)
+
+app.mount("/media", StaticFiles(directory="media"), name="media")
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
@@ -55,9 +59,21 @@ async def telegram_webhook(request: Request):
         print(f"Webhook error: {e}")
     return Response(content="OK", status_code=200)
 
+@app.get("/get_canvas_token")
+def read_get_token():
+    return FileResponse("./pages/get_canvas_token.html")
+
 @app.get("/")
 def read_root():
     return FileResponse("./pages/index.html")
+
+@app.get("/about")
+def read_about():
+    return FileResponse("./pages/about.html")
+
+@app.get("/github")
+def read_github():
+    return FileResponse("./pages/github.html")
 
 
 @app.get("/check_connection")

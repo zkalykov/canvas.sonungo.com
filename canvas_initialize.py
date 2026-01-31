@@ -1,6 +1,7 @@
 import os
 from urllib.parse import urlparse
 from canvasapi import Canvas
+from canvasapi.exceptions import InvalidAccessToken
 from google.cloud import kms
 import base64
 from dotenv import load_dotenv
@@ -160,5 +161,9 @@ def get_upcoming_assignments(token: str, base_url: str) -> list[dict]:
                     
         return upcoming_homeworks
         
+        return upcoming_homeworks
+        
+    except InvalidAccessToken:
+        raise
     except Exception:
         return []
