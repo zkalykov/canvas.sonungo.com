@@ -34,6 +34,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if doc.exists:
         data = doc.to_dict()
         if "canvas_url" in data and "canvas_token" in data:
+            if data.get("canvas_token_status") == "invalid":
+                keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(
+                    "<b>Canvas Token Invalid</b>\n\n"
+                    "Your token is no longer valid. Please update it to reconnect.",
+                    parse_mode='HTML',
+                    reply_markup=reply_markup
+                )
+                return ConversationHandler.END
+            
             await update.message.reply_text("Welcome back! You are already connected.")
             return ConversationHandler.END
     
@@ -309,11 +320,24 @@ async def assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = str(update.effective_user.id)
     # await update.message.reply_text("Resyncing your assignments...")
     # await sync_user_data(user_id)
-    # Syncing handled by scheduler
-    pass
-    
-    # Fetch from DB to display
+    # Check user status first
     db = get_db()
+    user_doc = db.collection("users").document(user_id).get()
+    
+    if user_doc.exists:
+        user_data = user_doc.to_dict()
+        if user_data.get("canvas_token_status") == "invalid":
+            keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                "<b>Canvas Token Invalid</b>\n\n"
+                "Your token is no longer valid. You cannot view assignments until you update it.",
+                parse_mode='HTML',
+                reply_markup=reply_markup
+            )
+            return
+
+    # Fetch from DB to display
     docs = db.collection("homeworks").where(field_path="telegram_id", op_string="==", value=user_id).stream()
     
     found_any = False
