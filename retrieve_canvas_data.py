@@ -84,7 +84,7 @@ async def sync_user_data(user_id: str, db=None, bot=None) -> int:
             count += 1
             
         return count
-        return count
+
 
     except InvalidAccessToken:
         # Mark as invalid to prevent future checks
