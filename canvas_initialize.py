@@ -73,8 +73,10 @@ def verify_canvas_token(token: str, base_url: str):
             
         return university_name, user_name
         
+    except InvalidAccessToken:
+        raise
     except Exception:
-        pass
+        raise
 import requests
 
 def search_canvas_institution(query: str) -> list[dict]:

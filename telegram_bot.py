@@ -5,12 +5,14 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.warnings import PTBUserWarning
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes, ConversationHandler
 from dotenv import load_dotenv
+from canvasapi.exceptions import InvalidAccessToken
 from db import get_db
-from canvas_initialize import verify_canvas_token, encrypt_token, search_canvas_institution
+from canvas_initialize import verify_canvas_token, encrypt_token, decrypt_token, search_canvas_institution
 from retrieve_canvas_data import sync_user_data
 import warnings
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from google.cloud.firestore import FieldFilter
 
 # Filter out the specific PTB warning about CallbackQueryHandler
 warnings.filterwarnings("ignore", category=PTBUserWarning)
@@ -37,7 +39,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if data.get("canvas_token_status") == "invalid":
                 keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.message.reply_text(
+                await update.effective_message.reply_text(
                     "<b>Canvas Token Invalid</b>\n\n"
                     "Your token is no longer valid. Please update it to reconnect.",
                     parse_mode='HTML',
@@ -45,10 +47,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 return ConversationHandler.END
             
-            await update.message.reply_text("Welcome back! You are already connected.")
+            await update.effective_message.reply_text("Welcome back! You are already connected.")
             return ConversationHandler.END
     
-    await update.message.reply_text(
+    await update.effective_message.reply_text(
         "Welcome! It looks like you are not connected yet.\n"
         "To get started, please tell me the <b>name of your university</b> (e.g., 'North American University', 'Wisconsin' or 'Harvard').",
         parse_mode='HTML'
@@ -57,7 +59,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text.strip()
-    print(f"DEBUG: Handling search query: {query}")
     
     if len(query) < 3:
         await update.message.reply_text("Please enter a longer name to search.")
@@ -65,11 +66,9 @@ async def handle_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE
         
     await update.message.reply_text("Searching for your university...")
     
-    print("DEBUG: Calling search_canvas_institution...")
     # Run blocking search in a separate thread to avoid freezing the bot
     loop = asyncio.get_running_loop()
     results = await loop.run_in_executor(None, search_canvas_institution, query)
-    print(f"DEBUG: Search returned {len(results)} results")
     
     if not results:
         await update.message.reply_text("I couldn't find any universities matching that name. Please try again.")
@@ -226,47 +225,69 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     canvas_url = context.user_data.get('canvas_url')
     
     # Verify token
-    await update.message.reply_text("Verifying...")
-    result = verify_canvas_token(token_text, canvas_url)
-    
-    if result:
-        university_name, user_canvas_name = result
+    try:
+        result = verify_canvas_token(token_text, canvas_url)
         
-        # specific fix: try to use the official name from search if available
-        search_results = context.user_data.get('search_results', [])
-        cached_school = next((item for item in search_results if item['domain'] == canvas_url), None)
-        if cached_school:
-            university_name = cached_school['name']
-        
-        # Encrypt token
-        encrypted_token = encrypt_token(token_text)
-        
-        # Save to Firestore (Minimal Data)
-        db = get_db()
-        user_data = {
-            "telegram_id": user_id,
-            "canvas_token": encrypted_token,
-            "canvas_url": canvas_url,
-            "notification": "on",
-            "canvas_token_status": "valid" # Reset status
-        }
-        db.collection("users").document(user_id).set(user_data)
-        
-        await update.message.reply_text(f"Connected: {university_name} - {user_canvas_name}")
-        
-        # Trigger initial sync
-        await update.message.reply_text("Syncing your assignments...")
-        count = await sync_user_data(user_id)
-        
-        if count > 0:
-             await update.message.reply_text(f"You have {count} upcoming assignment(s) due in the next 24 hours.")
-        else:
-             await update.message.reply_text("You have no assignments due in the next 24 hours.")
-             
-        return ConversationHandler.END
-    else:
+        if result:
+            university_name, user_canvas_name = result
+            
+            # specific fix: try to use the official name from search if available
+            search_results = context.user_data.get('search_results', [])
+            cached_school = next((item for item in search_results if item['domain'] == canvas_url), None)
+            if cached_school:
+                university_name = cached_school['name']
+            
+            # Encrypt token
+            encrypted_token = encrypt_token(token_text)
+            
+            # Save to Firestore (Merge to preserve other fields if exist)
+            db = get_db()
+            user_ref = db.collection("users").document(user_id)
+            
+            # Default data
+            user_data = {
+                "telegram_id": user_id,
+                "canvas_token": encrypted_token,
+                "canvas_url": canvas_url,
+                "university_name": university_name,
+                "notification": "on",
+                "canvas_token_status": "valid"
+            }
+            
+            if user_ref.get().exists:
+                 # Update only changed fields to preserve preferences
+                 user_ref.update({
+                     "canvas_token": encrypted_token,
+                     "canvas_url": canvas_url,
+                     "university_name": university_name,
+                     "canvas_token_status": "valid"
+                 })
+            else:
+                 user_ref.set(user_data)
+            
+            await update.message.reply_text(f"Connected: {university_name} - {user_canvas_name}")
+            
+            # Trigger initial sync
+
+            count = await sync_user_data(user_id)
+            
+            if count > 0:
+                 await update.message.reply_text(f"You have {count} upcoming assignment(s) due in the next 24 hours.")
+            else:
+                 await update.message.reply_text("You have no assignments due in the next 24 hours.")
+                 
+            return ConversationHandler.END
+            
+    except InvalidAccessToken:
         await update.message.reply_text("Invalid Canvas Token. Please check your token and try again.")
         return WAITING_FOR_TOKEN
+    except Exception as e:
+        await update.message.reply_text(f"Could not verify token at this moment: {str(e)}\nPlease try again.")
+        return WAITING_FOR_TOKEN
+        
+    # Fallback if result is None (should not happen with raise)
+    await update.message.reply_text("Verification failed for unknown reason. Please try again.")
+    return WAITING_FOR_TOKEN
 
 def format_assignment_message(hw):
     # Determine status & notification
@@ -330,8 +351,7 @@ async def send_reminder_to_user(bot, user_id, hw, custom_header=""):
 
 async def assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
-    # await update.message.reply_text("Resyncing your assignments...")
-    # await sync_user_data(user_id)
+
     # Check user status first
     db = get_db()
     user_doc = db.collection("users").document(user_id).get()
@@ -341,7 +361,7 @@ async def assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         if user_data.get("canvas_token_status") == "invalid":
             keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(
+            await update.effective_message.reply_text(
                 "<b>Canvas Token Invalid</b>\n\n"
                 "Your token is no longer valid. You cannot view assignments until you update it.",
                 parse_mode='HTML',
@@ -350,7 +370,7 @@ async def assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
     # Fetch from DB to display
-    docs = db.collection("homeworks").where(field_path="telegram_id", op_string="==", value=user_id).stream()
+    docs = db.collection("homeworks").where(filter=FieldFilter("telegram_id", "==", user_id)).stream()
     
     found_any = False
     now = datetime.now().astimezone()
@@ -372,10 +392,10 @@ async def assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         found_any = True
         
         msg_text, reply_markup = format_assignment_message(hw)
-        await update.message.reply_text(msg_text, parse_mode='HTML', reply_markup=reply_markup)
+        await update.effective_message.reply_text(msg_text, parse_mode='HTML', reply_markup=reply_markup)
     
     if not found_any:
-        await update.message.reply_text("No upcoming assignments found in the next 24 hours.")
+        await update.effective_message.reply_text("No upcoming assignments found in the next 24 hours.")
 
 async def handle_notification_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -435,7 +455,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Even the developer cannot decrypt or see your token."
     )
     keyboard = [[InlineKeyboardButton("Visit Website", url="https://canvas.sonungo.com")]]
-    await update.message.reply_text(about_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.effective_message.reply_text(about_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -443,7 +463,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("About", callback_data="SETTINGS_ABOUT")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("<b>Settings</b>\n\nChoose an option:", reply_markup=reply_markup, parse_mode='HTML')
+    await update.effective_message.reply_text("<b>Settings</b>\n\nChoose an option:", reply_markup=reply_markup, parse_mode='HTML')
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -454,7 +474,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     doc = user_ref.get()
     
     if not doc.exists:
-        await update.message.reply_text("Status: Not Connected ❌\nUse /start to connect.")
+        await update.effective_message.reply_text("Status: Not Connected\nUse /start to connect.")
         return
 
     data = doc.to_dict()
@@ -462,15 +482,15 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     encrypted_token = data.get("canvas_token")
     
     if not canvas_url or not encrypted_token:
-        await update.message.reply_text("Status: Not Connected ❌\nUse /start to connect.")
+        await update.effective_message.reply_text("Status: Not Connected\nUse /start to connect.")
         return
         
     # Check stored status
     if data.get("canvas_token_status") == "invalid":
         keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            f"Status: <b>Invalid Token</b> ❌\n"
+        await update.effective_message.reply_text(
+            f"Status: <b>Invalid Token</b>\n"
             f"University: {canvas_url}\n\n"
             "Please update your token to reconnect.",
             parse_mode='HTML',
@@ -479,19 +499,38 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Verify live
-    await update.message.reply_chat_action("typing") # Show typing status
+    await update.effective_message.reply_chat_action("typing") # Show typing status
     try:
         token = decrypt_token(encrypted_token)
         result = verify_canvas_token(token, canvas_url)
         
         if result:
-            university_name, user_name = result
-            # Assuming university_name might be just the domain or raw name
-            # We can use canvas_url as university name if verify doesn't return a pretty one, 
-            # but verify_canvas_token likely returns (account.name, user.name)
+            verified_uni_name, user_name = result
             
-            await update.message.reply_text(
-                f"Status: <b>Connected</b> ✅\n"
+            # Prefer stored name if available (from search), otherwise use verification result
+            university_name = data.get("university_name") or verified_uni_name
+
+            # If the name is generic, try to improve it (for legacy users)
+            if "Instructure" in university_name or "Canvas" in university_name:
+                 # Try to find better name
+                 try:
+                     # This is blocking, but we are in async function, so run in executor
+                     loop = asyncio.get_running_loop()
+                     # Search by domain to get exact name
+                     # The search API searches by name conformantly, not domain. 
+                     # But we can try searching by the "subdomain" part of the url
+                     
+                     domain_part = canvas_url.replace(".instructure.com", "").replace("canvas.", "")
+                     if len(domain_part) > 1:
+                         results = await loop.run_in_executor(None, search_canvas_institution, domain_part)
+                         best_match = next((r for r in results if r['domain'] == canvas_url), None)
+                         if best_match:
+                             university_name = best_match['name']
+                 except Exception:
+                     pass
+
+            await update.effective_message.reply_text(
+                f"Status: <b>Connected</b>\n"
                 f"University: {university_name}\n"
                 f"Student: {user_name}",
                 parse_mode='HTML'
@@ -500,19 +539,26 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
              # Should be caught by exception but handling boolean fail safety
              raise Exception("Verification failed")
              
-    except Exception:
-        # If verification fails here, likely invalid token
-        # Update DB and notify
+    except InvalidAccessToken:
+        # Definitive invalid token
         user_ref.update({"canvas_token_status": "invalid"})
         
         keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            f"Status: <b>Invalid Token</b> ❌\n"
+        await update.effective_message.reply_text(
+            f"Status: <b>Invalid Token</b>\n"
             f"University: {canvas_url}\n\n"
             "Your token seems to have expired.",
             parse_mode='HTML',
             reply_markup=reply_markup
+        )
+    except Exception as e:
+        # Network error or other issue - Do NOT mark as invalid yet
+        await update.effective_message.reply_text(
+            f"Status: <b>Unknown</b>\n"
+            f"University: {canvas_url}\n\n"
+            f"Could not verify status at this moment. Please try again later.\nError: {str(e)}",
+            parse_mode='HTML'
         )
 
 async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -571,7 +617,7 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
         # Delete Homeworks
         # Note: Ideally usage of batch commits for atomic operations
         batch = db.batch()
-        docs = db.collection("homeworks").where(field_path="telegram_id", op_string="==", value=user_id).stream()
+        docs = db.collection("homeworks").where(filter=FieldFilter("telegram_id", "==", user_id)).stream()
         count = 0
         deleted_count = 0
         
@@ -635,10 +681,7 @@ def get_application():
         
     application = ApplicationBuilder().token(TOKEN).build()
     
-    # application.add_handler(CommandHandler("start", start)) # Note: ConversationHandler handles its own /start, this is fallback/redundant or for non-conv states?  
-    # Actually setup logic puts ConversationHandler first.
-    # The start command inside ConversationHandler is strict entry point.
-    # We should add non-conflicting commands.
+
     
     application.add_handler(CommandHandler("assignments", assignments_command))
     application.add_handler(CommandHandler("status", status_command)) # Added

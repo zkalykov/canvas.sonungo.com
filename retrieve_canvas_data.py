@@ -1,5 +1,8 @@
 from canvasapi.exceptions import InvalidAccessToken
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+import asyncio
+from db import get_db
+from canvas_initialize import decrypt_token, get_upcoming_assignments
 
 async def sync_user_data(user_id: str, db=None, bot=None) -> int:
     """
