@@ -57,6 +57,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text.strip()
+    print(f"DEBUG: Handling search query: {query}")
     
     if len(query) < 3:
         await update.message.reply_text("Please enter a longer name to search.")
@@ -64,7 +65,11 @@ async def handle_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE
         
     await update.message.reply_text("Searching for your university...")
     
-    results = search_canvas_institution(query)
+    print("DEBUG: Calling search_canvas_institution...")
+    # Run blocking search in a separate thread to avoid freezing the bot
+    loop = asyncio.get_running_loop()
+    results = await loop.run_in_executor(None, search_canvas_institution, query)
+    print(f"DEBUG: Search returned {len(results)} results")
     
     if not results:
         await update.message.reply_text("I couldn't find any universities matching that name. Please try again.")
@@ -200,12 +205,19 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Check for commands or explicit cancel/search keywords manually if user types them instead of clicking
     # (Though buttons are primary, this handles "Search" text)
-    if token_text.lower() in ["search", "search again", "cancel", "/start"]:
-        if token_text.lower() == "/start":
-             pass
-        else:
-             await update.message.reply_text("Okay, let's search again. Please tell me the *name of your university*.")
-             return WAITING_FOR_SEARCH_QUERY
+    if token_text.lower() in ["search", "search again", "cancel"]:
+        await update.message.reply_text("Okay, let's search again. Please tell me the <b>name of your university</b>.", parse_mode='HTML')
+        return WAITING_FOR_SEARCH_QUERY
+
+    if token_text.startswith("/"):
+         # If fallbacks didn't catch it, handle basic commands manually
+         if token_text.lower() == "/start":
+             return await start(update, context)
+         # Ignore other commands to let fallbacks/global handlers deal with them? 
+         # Or return END? returning END breaks conversation.
+         
+         # Just return to waiting logic
+         return WAITING_FOR_TOKEN
 
     # Trigger message deletion
     asyncio.create_task(handle_max_speed_delete(update.message))
@@ -433,6 +445,76 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("<b>Settings</b>\n\nChoose an option:", reply_markup=reply_markup, parse_mode='HTML')
 
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    db = get_db()
+    
+    # Check user doc
+    user_ref = db.collection("users").document(user_id)
+    doc = user_ref.get()
+    
+    if not doc.exists:
+        await update.message.reply_text("Status: Not Connected ❌\nUse /start to connect.")
+        return
+
+    data = doc.to_dict()
+    canvas_url = data.get("canvas_url")
+    encrypted_token = data.get("canvas_token")
+    
+    if not canvas_url or not encrypted_token:
+        await update.message.reply_text("Status: Not Connected ❌\nUse /start to connect.")
+        return
+        
+    # Check stored status
+    if data.get("canvas_token_status") == "invalid":
+        keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            f"Status: <b>Invalid Token</b> ❌\n"
+            f"University: {canvas_url}\n\n"
+            "Please update your token to reconnect.",
+            parse_mode='HTML',
+            reply_markup=reply_markup
+        )
+        return
+
+    # Verify live
+    await update.message.reply_chat_action("typing") # Show typing status
+    try:
+        token = decrypt_token(encrypted_token)
+        result = verify_canvas_token(token, canvas_url)
+        
+        if result:
+            university_name, user_name = result
+            # Assuming university_name might be just the domain or raw name
+            # We can use canvas_url as university name if verify doesn't return a pretty one, 
+            # but verify_canvas_token likely returns (account.name, user.name)
+            
+            await update.message.reply_text(
+                f"Status: <b>Connected</b> ✅\n"
+                f"University: {university_name}\n"
+                f"Student: {user_name}",
+                parse_mode='HTML'
+            )
+        else:
+             # Should be caught by exception but handling boolean fail safety
+             raise Exception("Verification failed")
+             
+    except Exception:
+        # If verification fails here, likely invalid token
+        # Update DB and notify
+        user_ref.update({"canvas_token_status": "invalid"})
+        
+        keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            f"Status: <b>Invalid Token</b> ❌\n"
+            f"University: {canvas_url}\n\n"
+            "Your token seems to have expired.",
+            parse_mode='HTML',
+            reply_markup=reply_markup
+        )
+
 async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -553,7 +635,13 @@ def get_application():
         
     application = ApplicationBuilder().token(TOKEN).build()
     
+    application.add_handler(CommandHandler("start", start)) # Note: ConversationHandler handles its own /start, this is fallback/redundant or for non-conv states? 
+    # Actually setup logic puts ConversationHandler first.
+    # The start command inside ConversationHandler is strict entry point.
+    # We should add non-conflicting commands.
+    
     application.add_handler(CommandHandler("assignments", assignments_command))
+    application.add_handler(CommandHandler("status", status_command)) # Added
     application.add_handler(CommandHandler("about", about_command))
     application.add_handler(CommandHandler("settings", settings_command))
     application.add_handler(CallbackQueryHandler(handle_notification_toggle, pattern="^TOGGLE_NOTIF_"))
@@ -580,7 +668,11 @@ def get_application():
                 CallbackQueryHandler(handle_search_again, pattern="^SEARCH_AGAIN$")
             ],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CommandHandler("start", start)
+        ],
     )
     
     application.add_handler(conv_handler)

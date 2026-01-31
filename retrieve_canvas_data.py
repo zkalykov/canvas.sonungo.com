@@ -87,6 +87,7 @@ async def sync_user_data(user_id: str, db=None, bot=None) -> int:
 
 
     except InvalidAccessToken:
+        print(f"Invalid Token for user {user_id}")
         # Mark as invalid to prevent future checks
         user_ref.update({"canvas_token_status": "invalid"})
         
@@ -107,11 +108,12 @@ async def sync_user_data(user_id: str, db=None, bot=None) -> int:
                     parse_mode='HTML',
                     reply_markup=reply_markup
                 )
-            except Exception:
-                pass # Fail silently if message send fails
+            except Exception as e:
+                print(f"Failed to send invalid token msg: {e}")
         return 0
 
-    except Exception:
+    except Exception as e:
+        print(f"Sync Error for {user_id}: {e}")
         # Fail silently for security (no logging of token errors here either)
         return 0
 
