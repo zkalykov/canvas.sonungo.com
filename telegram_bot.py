@@ -635,7 +635,7 @@ def get_application():
         
     application = ApplicationBuilder().token(TOKEN).build()
     
-    application.add_handler(CommandHandler("start", start)) # Note: ConversationHandler handles its own /start, this is fallback/redundant or for non-conv states? 
+    # application.add_handler(CommandHandler("start", start)) # Note: ConversationHandler handles its own /start, this is fallback/redundant or for non-conv states?  
     # Actually setup logic puts ConversationHandler first.
     # The start command inside ConversationHandler is strict entry point.
     # We should add non-conflicting commands.
