@@ -75,6 +75,10 @@ def read_about():
 def read_github():
     return FileResponse(os.path.join(os.path.dirname(__file__), "pages/github.html"))
 
+@app.get("/legal")
+def read_legal():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "pages/legal.html"))
+
 
 @app.get("/check_connection")
 def check_connection():

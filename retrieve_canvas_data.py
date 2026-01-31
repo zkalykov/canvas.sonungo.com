@@ -4,6 +4,29 @@ import asyncio
 from db import get_db
 from canvas_initialize import decrypt_token, get_upcoming_assignments
 
+from datetime import datetime
+
+def calculate_notification_level(deadline_str):
+    try:
+        dt_utc = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+        now = datetime.now().astimezone()
+        remaining = dt_utc - now
+        minutes_left = remaining.total_seconds() / 60
+    except Exception:
+        return 0, 0 # level, minutes_left
+        
+    if minutes_left <= 0: return 9, minutes_left
+    elif minutes_left <= 5: return 8, minutes_left
+    elif minutes_left <= 10: return 7, minutes_left
+    elif minutes_left <= 15: return 6, minutes_left
+    elif minutes_left <= 30: return 5, minutes_left
+    elif minutes_left <= 60: return 4, minutes_left
+    elif minutes_left <= 180: return 3, minutes_left
+    elif minutes_left <= 360: return 2, minutes_left
+    elif minutes_left <= 720: return 1, minutes_left
+    return 0, minutes_left
+
+
 async def sync_user_data(user_id: str, db=None, bot=None) -> int:
     """
     Syncs homeworks for a single user.
@@ -63,7 +86,11 @@ async def sync_user_data(user_id: str, db=None, bot=None) -> int:
             
             # Defaults
             current_notification = "on"
-            current_level = 0
+            
+            # Smart Level Init:
+            # If new doc, calculate level based on time remaining to avoid immediate spam
+            calc_level, _ = calculate_notification_level(hw['deadline'])
+            current_level = calc_level
             
             if doc_snap.exists:
                 data = doc_snap.to_dict()
@@ -72,6 +99,8 @@ async def sync_user_data(user_id: str, db=None, bot=None) -> int:
                 elif val == 0: val = "off"
                 current_notification = val
                 
+                # If existing, keep existing level (unless we want to force update?)
+                # Usually we trust the stored level.
                 current_level = data.get("notification_level", 0)
             
             # Status comes strictly from Canvas
@@ -160,7 +189,6 @@ async def check_and_send_reminders(bot):
     
     # Local import to avoid circular dependency
     from telegram_bot import send_reminder_to_user
-    from datetime import datetime
     
     for doc in docs:
         hw = doc.to_dict()
@@ -171,61 +199,25 @@ async def check_and_send_reminders(bot):
         val = hw.get("notification", "on")
         if val == 0 or val == "off": continue
         
-        # Calculate minutes remaining
-        try:
-            raw_deadline = hw['deadline']
-            dt_utc = datetime.fromisoformat(raw_deadline.replace('Z', '+00:00'))
-            now = datetime.now().astimezone()
-            remaining = dt_utc - now
-            minutes_left = remaining.total_seconds() / 60
-        except Exception:
-            continue
-            
+        # Calculate level
+        target_level, minutes_left = calculate_notification_level(hw['deadline'])
         current_level = hw.get("notification_level", 0)
-        target_level = current_level
+        
         custom_header = ""
         
-        # Threshold Check
-        if minutes_left <= 0:
-             # Missed / Overdue
-             if current_level < 9:
-                 target_level = 9
-                 custom_header = "<b>Missed Assignment!</b>"
-        elif minutes_left <= 5: # 5m
-             if current_level < 8: 
-                 target_level = 8
-                 custom_header = "<b>5 minutes left!</b>"
-        elif minutes_left <= 10: # 10m
-             if current_level < 7: 
-                 target_level = 7
-                 custom_header = "<b>10 minutes left!</b>"
-        elif minutes_left <= 15: # 15m
-             if current_level < 6: 
-                 target_level = 6
-                 custom_header = "<b>15 minutes left!</b>"
-        elif minutes_left <= 30: # 30m
-             if current_level < 5: 
-                 target_level = 5
-                 custom_header = "<b>30 minutes left!</b>"
-        elif minutes_left <= 60: # 1h
-             if current_level < 4: 
-                 target_level = 4
-                 custom_header = "<b>1 hour left!</b>"
-        elif minutes_left <= 180: # 3h
-             if current_level < 3: 
-                 target_level = 3
-                 custom_header = "<b>3 hours left!</b>"
-        elif minutes_left <= 360: # 6h
-             if current_level < 2: 
-                 target_level = 2
-                 custom_header = "<b>6 hours left!</b>"
-        elif minutes_left <= 720: # 12h
-             if current_level < 1: 
-                 target_level = 1
-                 custom_header = "<b>12 hours left!</b>"
-                 
-        # Send & Update
+        # Determine Custom Header based on target_level
+        # (Only needed if we are sending)
         if target_level > current_level:
+            if target_level == 9: custom_header = "<b>Missed Assignment!</b>"
+            elif target_level == 8: custom_header = "<b>5 minutes left!</b>"
+            elif target_level == 7: custom_header = "<b>10 minutes left!</b>"
+            elif target_level == 6: custom_header = "<b>15 minutes left!</b>"
+            elif target_level == 5: custom_header = "<b>30 minutes left!</b>"
+            elif target_level == 4: custom_header = "<b>1 hour left!</b>"
+            elif target_level == 3: custom_header = "<b>3 hours left!</b>"
+            elif target_level == 2: custom_header = "<b>6 hours left!</b>"
+            elif target_level == 1: custom_header = "<b>12 hours left!</b>"
+                 
             success = await send_reminder_to_user(bot, user_id, hw, custom_header)
             if success:
                 doc.reference.update({"notification_level": target_level})

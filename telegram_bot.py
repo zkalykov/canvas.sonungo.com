@@ -116,8 +116,8 @@ async def handle_university_selection(update: Update, context: ContextTypes.DEFA
     # Add buttons
     keyboard = [
         [InlineKeyboardButton("Edit / Change University", callback_data="SEARCH_AGAIN")],
-        [InlineKeyboardButton("How to take Canvas Token", url="https://canvas.sonungo.com")],
-        [InlineKeyboardButton("Privacy and Policy", url="https://canvas.sonungo.com")]
+        [InlineKeyboardButton("How to take Canvas Token", url="https://canvas.sonungo.com/get_canvas_token")],
+        [InlineKeyboardButton("Privacy and Policy", url="https://canvas.sonungo.com/legal")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -168,8 +168,8 @@ async def handle_update_token_start(update: Update, context: ContextTypes.DEFAUL
     # Add buttons
     keyboard = [
         [InlineKeyboardButton("Edit / Change University", callback_data="SEARCH_AGAIN")],
-        [InlineKeyboardButton("How to take Canvas Token", url="https://canvas.sonungo.com")],
-        [InlineKeyboardButton("Privacy and Policy", url="https://canvas.sonungo.com")]
+        [InlineKeyboardButton("How to take Canvas Token", url="https://canvas.sonungo.com/get_canvas_token")],
+        [InlineKeyboardButton("Privacy and Policy", url="https://canvas.sonungo.com/legal")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -368,6 +368,9 @@ async def assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                 reply_markup=reply_markup
             )
             return
+    else:
+        await update.effective_message.reply_text("You are not registered. Please use /start to register.")
+        return
 
     # Fetch from DB to display
     docs = db.collection("homeworks").where(filter=FieldFilter("telegram_id", "==", user_id)).stream()
