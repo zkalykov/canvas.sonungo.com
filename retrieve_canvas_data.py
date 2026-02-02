@@ -196,6 +196,21 @@ async def check_and_send_reminders(bot):
         
         # Skip if completed or notification off
         if hw.get("is_completed", False): continue
+        
+        # Parse Deadline for Deletion Check
+        try:
+             deadline_str = hw.get('deadline')
+             if deadline_str:
+                  dt_utc = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+                  now = datetime.now().astimezone()
+                  
+                  # If overdue by more than 1 hour (3600 seconds), DELETE it
+                  if (now - dt_utc).total_seconds() > 3600:
+                      doc.reference.delete()
+                      continue
+        except Exception:
+             pass
+
         val = hw.get("notification", "on")
         if val == 0 or val == "off": continue
         

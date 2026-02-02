@@ -146,8 +146,15 @@ def get_upcoming_assignments(token: str, base_url: str) -> list[dict]:
                     
                     if hasattr(bond, 'submission'):
                         sub = bond.submission
-                        state = sub.get('workflow_state') if isinstance(sub, dict) else getattr(sub, 'workflow_state', 'unsubmitted')
-                        is_really_submitted = (state == 'submitted')
+                        if isinstance(sub, dict):
+                            state = sub.get('workflow_state')
+                            submitted_at = sub.get('submitted_at')
+                        else:
+                            state = getattr(sub, 'workflow_state', 'unsubmitted')
+                            submitted_at = getattr(sub, 'submitted_at', None)
+                        
+                        # Check: state is 'submitted' OR submitted_at is present
+                        is_really_submitted = (state == 'submitted' or submitted_at is not None)
                     else:
                         is_really_submitted = getattr(bond, 'has_submitted_submissions', False)
 
