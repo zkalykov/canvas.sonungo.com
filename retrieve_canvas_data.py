@@ -198,13 +198,6 @@ async def check_and_send_reminders(bot):
         hw = doc.to_dict()
         user_id = hw.get("telegram_id")
         
-        # Skip if completed or notification off (assignment level toggle)
-        if hw.get("is_completed", False): continue
-        
-        # Assignment level toggle check
-        val = hw.get("notification", "on")
-        if val == 0 or val == "off": continue
-        
         # Parse Deadline for Deletion Check
         deadline_str = hw.get('deadline')
         dt_utc = None
@@ -219,6 +212,13 @@ async def check_and_send_reminders(bot):
                       continue
         except Exception:
              pass
+
+        # Skip if completed or notification off (assignment level toggle)
+        if hw.get("is_completed", False): continue
+        
+        # Assignment level toggle check
+        val = hw.get("notification", "on")
+        if val == 0 or val == "off": continue
 
         # Calculate level
         target_level, minutes_left = calculate_notification_level(hw['deadline'])
