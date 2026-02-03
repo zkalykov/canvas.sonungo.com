@@ -231,7 +231,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = verify_canvas_token(token_text, canvas_url)
         
         if result:
-            university_name, user_canvas_name = result
+            university_name, user_name, time_zone = result
             
             # specific fix: try to use the official name from search if available
             search_results = context.user_data.get('search_results', [])
@@ -251,7 +251,8 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "telegram_id": user_id,
                 "canvas_token": encrypted_token,
                 "canvas_url": canvas_url,
-                "canvas_token_status": "valid"
+                "canvas_token_status": "valid",
+                "time_zone": time_zone
             }
             
             if user_ref.get().exists:
@@ -259,7 +260,8 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                  user_ref.update({
                      "canvas_token": encrypted_token,
                      "canvas_url": canvas_url,
-                     "canvas_token_status": "valid"
+                     "canvas_token_status": "valid",
+                     "time_zone": time_zone
                  })
             else:
                  user_ref.set(user_data)
@@ -303,9 +305,21 @@ def format_assignment_message(hw):
         # Parse UTC string (Canvas usually sends 'Z' at the end)
         dt_utc = datetime.fromisoformat(raw_deadline.replace('Z', '+00:00'))
         # Convert to local system time
-        dt_local = dt_utc.astimezone(ZoneInfo("America/Chicago"))
+        # Convert to local system time
+        # Use timezone from hw if available, else default to Central
+        tz_str = hw.get('time_zone', 'America/Chicago')
+        
+        try:
+             target_tz = ZoneInfo(tz_str)
+        except Exception:
+             # Fallback if invalid timezone string
+             target_tz = ZoneInfo("America/Chicago")
+             
+        dt_local = dt_utc.astimezone(target_tz)
         # Format nicely: "Wednesday, Jan 28 at 11:59 PM (CT)"
-        formatted_deadline = dt_local.strftime("%A, %b %d at %I:%M %p (CT)")
+        # We can try to abbreviate the timezone name if possible, or just append it.
+        # %Z might give CST/CDT for standard ones.
+        formatted_deadline = dt_local.strftime("%A, %b %d at %I:%M %p (%Z)")
         
         # Calculate time remaining
         now = datetime.now().astimezone()

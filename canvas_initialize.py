@@ -71,7 +71,17 @@ def verify_canvas_token(token: str, base_url: str):
         else:
             university_name = domain.replace("canvas.", "")
             
-        return university_name, user_name
+        # Fetch profile for timezone
+        try:
+             # CanvasAPI User object doesn't have time_zone attribute by default
+             # We must request the profile explicitly
+             response = user._requester.request('GET', 'users/self/profile')
+             profile_data = response.json()
+             time_zone = profile_data.get('time_zone', 'America/Chicago')
+        except Exception:
+             time_zone = 'America/Chicago'
+
+        return university_name, user_name, time_zone
         
     except InvalidAccessToken:
         raise

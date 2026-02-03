@@ -49,6 +49,7 @@ async def sync_user_data(user_id: str, db=None, bot=None) -> int:
         
     encrypted_token = data.get("canvas_token")
     canvas_url = data.get("canvas_url")
+    time_zone = data.get("time_zone", "America/Chicago") # Default if missing
     
     if not encrypted_token or not canvas_url:
         return 0
@@ -75,7 +76,8 @@ async def sync_user_data(user_id: str, db=None, bot=None) -> int:
                 "course_code": hw['course_code'],
                 "course_name": hw['course_name'],
                 "homework_name": hw['homework_name'],
-                "deadline": hw['deadline']
+                "deadline": hw['deadline'],
+                "time_zone": time_zone
             }
             # Composite key: user_id + assignment_id
             doc_id = f"{user_id}_{hw['assignment_id']}"
