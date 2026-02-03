@@ -45,6 +45,10 @@ from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(lifespan=lifespan)
 
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc: Exception):
+    return FileResponse(os.path.join(os.path.dirname(__file__), "pages/404.html"), status_code=404)
+
 app.mount("/media", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "media")), name="media")
 
 @app.post("/webhook")
