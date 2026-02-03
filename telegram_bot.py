@@ -607,6 +607,52 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
             
         await query.edit_message_text(f"Account and {deleted_count} assignments deleted.\n\nType /start to restart.")
         
+    elif data == "SETTINGS_NOTIF_RESET":
+        user_ref = db.collection("users").document(user_id)
+        # Reset to all on
+        default_prefs = {
+            "12_hours": "on",
+            "6_hours": "on",
+            "3_hours": "on",
+            "1_hour": "on",
+            "30_minutes": "on",
+            "15_minutes": "on",
+            "10_minutes": "on",
+            "5_minutes": "on",
+            "0_minutes": "on"
+        }
+        user_ref.update({"notification_preferences": default_prefs})
+        
+        # Show menu again (copy paste logic or redirect?)
+        # Redirecting to menu logic by calling recursive function or just copy-paste for speed/simplicity here since structure is simple
+        # Let's just re-render the menu
+        
+        order = [
+            ("12_hours", "12 hours"),
+            ("6_hours", "6 hours"),
+            ("3_hours", "3 hours"),
+            ("1_hour", "1 hour"),
+            ("30_minutes", "30 minutes"),
+            ("15_minutes", "15 minutes"),
+            ("10_minutes", "10 minutes"),
+            ("5_minutes", "5 minutes"),
+            ("0_minutes", "0 minutes")
+        ]
+        
+        keyboard = []
+        for key, label in order:
+            btn_text = f"{label} - on"
+            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"PREF_TOGGLE_{key}")])
+            
+        keyboard.append([InlineKeyboardButton("Reset to Default", callback_data="SETTINGS_NOTIF_RESET")])
+        keyboard.append([InlineKeyboardButton("Go Back", callback_data="SETTINGS_BACK")])
+        
+        await query.edit_message_text(
+            "<b>Update your notifications:</b>\n\nClick to toggle on/off: (Reset done)",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='HTML'
+        )
+
     elif data == "SETTINGS_NOTIF_MENU":
         user_ref = db.collection("users").document(user_id)
         doc = user_ref.get()
@@ -654,6 +700,7 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
             # Callback: PREF_TOGGLE_{key}
             keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"PREF_TOGGLE_{key}")])
             
+        keyboard.append([InlineKeyboardButton("Reset to Default", callback_data="SETTINGS_NOTIF_RESET")])
         keyboard.append([InlineKeyboardButton("Go Back", callback_data="SETTINGS_BACK")])
         
         await query.edit_message_text(
@@ -726,6 +773,7 @@ async def handle_notification_preference_toggle(update: Update, context: Context
         btn_text = f"{label} - {status}"
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"PREF_TOGGLE_{k}")])
         
+    keyboard.append([InlineKeyboardButton("Reset to Default", callback_data="SETTINGS_NOTIF_RESET")])
     keyboard.append([InlineKeyboardButton("Go Back", callback_data="SETTINGS_BACK")])
     
     try:
