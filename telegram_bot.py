@@ -291,7 +291,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Verification failed for unknown reason. Please try again.")
     return WAITING_FOR_TOKEN
 
-def format_assignment_message(hw):
+def format_assignment_message(hw, user_timezone=None):
     # Determine status & notification
     is_completed = hw.get("is_completed", False)
     val = hw.get("notification", "on")
@@ -306,8 +306,8 @@ def format_assignment_message(hw):
         dt_utc = datetime.fromisoformat(raw_deadline.replace('Z', '+00:00'))
         # Convert to local system time
         # Convert to local system time
-        # Use timezone from hw if available, else default to Central
-        tz_str = hw.get('time_zone', 'America/Chicago')
+        # Use timezone from user if available, else hw (legacy), else default
+        tz_str = user_timezone or hw.get('time_zone', 'America/Chicago')
         
         try:
              target_tz = ZoneInfo(tz_str)
@@ -353,8 +353,8 @@ def format_assignment_message(hw):
     
     return msg_text, reply_markup
 
-async def send_reminder_to_user(bot, user_id, hw, custom_header=""):
-    text, markup = format_assignment_message(hw)
+async def send_reminder_to_user(bot, user_id, hw, custom_header="", user_timezone=None):
+    text, markup = format_assignment_message(hw, user_timezone)
     if custom_header:
         text = f"{custom_header}\n{text}"
     try:
@@ -372,6 +372,7 @@ async def assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if user_doc.exists:
         user_data = user_doc.to_dict()
+        user_timezone = user_data.get("time_zone")
         if user_data.get("canvas_token_status") == "invalid":
             keyboard = [[InlineKeyboardButton("Update my token", callback_data="UPDATE_TOKEN")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -408,7 +409,7 @@ async def assignments_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             
         found_any = True
         
-        msg_text, reply_markup = format_assignment_message(hw)
+        msg_text, reply_markup = format_assignment_message(hw, user_timezone)
         await update.effective_message.reply_text(msg_text, parse_mode='HTML', reply_markup=reply_markup)
     
     if not found_any:
@@ -477,6 +478,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("Delete my Data", callback_data="SETTINGS_DEL_CONFIRM")],
+        [InlineKeyboardButton("Update Notifications", callback_data="SETTINGS_NOTIF_MENU")],
         [InlineKeyboardButton("About", callback_data="SETTINGS_ABOUT")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -532,8 +534,10 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
     query = update.callback_query
     await query.answer()
     
+    
     data = query.data
     user_id = str(update.effective_user.id)
+    db = get_db()
     
     if data == "SETTINGS_ABOUT":
         back_btn = [[InlineKeyboardButton("Back", callback_data="SETTINGS_BACK")]]
@@ -555,6 +559,7 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
         # Restore main settings menu
         keyboard = [
             [InlineKeyboardButton("Delete my Data", callback_data="SETTINGS_DEL_CONFIRM")],
+            [InlineKeyboardButton("Update Notifications", callback_data="SETTINGS_NOTIF_MENU")],
             [InlineKeyboardButton("About", callback_data="SETTINGS_ABOUT")]
         ]
         await query.edit_message_text("**Settings**\n\nChoose an option:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
@@ -601,6 +606,132 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
             batch.commit()
             
         await query.edit_message_text(f"Account and {deleted_count} assignments deleted.\n\nType /start to restart.")
+        
+    elif data == "SETTINGS_NOTIF_MENU":
+        user_ref = db.collection("users").document(user_id)
+        doc = user_ref.get()
+        if not doc.exists:
+            await query.edit_message_text("User not found.")
+            return
+
+        user_data = doc.to_dict()
+        # Default prefs if not exists: All ON
+        # Keys correspond to levels:
+        # 12h, 6h, 3h, 1h, 30m, 15m, 10m, 5m, 0m
+        default_prefs = {
+            "12_hours": "on",
+            "6_hours": "on",
+            "3_hours": "on",
+            "1_hour": "on",
+            "30_minutes": "on",
+            "15_minutes": "on",
+            "10_minutes": "on",
+            "5_minutes": "on",
+            "0_minutes": "on"
+        }
+        
+        current_prefs = user_data.get("notification_preferences", {})
+        # Merge safely
+        prefs = {**default_prefs, **current_prefs}
+        
+        # Order for display
+        order = [
+            ("12_hours", "12 hours"),
+            ("6_hours", "6 hours"),
+            ("3_hours", "3 hours"),
+            ("1_hour", "1 hour"),
+            ("30_minutes", "30 minutes"),
+            ("15_minutes", "15 minutes"),
+            ("10_minutes", "10 minutes"),
+            ("5_minutes", "5 minutes"),
+            ("0_minutes", "0 minutes")
+        ]
+        
+        keyboard = []
+        for key, label in order:
+            status = prefs.get(key, "on")
+            btn_text = f"{label} - {status}"
+            # Callback: PREF_TOGGLE_{key}
+            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"PREF_TOGGLE_{key}")])
+            
+        keyboard.append([InlineKeyboardButton("Go Back", callback_data="SETTINGS_BACK")])
+        
+        await query.edit_message_text(
+            "<b>Update your notifications:</b>\n\nClick to toggle on/off:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='HTML'
+        )
+
+async def handle_notification_preference_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    # data format: PREF_TOGGLE_12_hours
+    key = data.replace("PREF_TOGGLE_", "")
+    
+    user_id = str(update.effective_user.id)
+    db = get_db()
+    user_ref = db.collection("users").document(user_id)
+    doc = user_ref.get()
+    
+    if not doc.exists:
+        return
+        
+    user_data = doc.to_dict()
+    prefs = user_data.get("notification_preferences", {})
+    
+    # Defaults in case this is first time
+    default_prefs = {
+        "12_hours": "on",
+        "6_hours": "on",
+        "3_hours": "on",
+        "1_hour": "on",
+        "30_minutes": "on",
+        "15_minutes": "on",
+        "10_minutes": "on",
+        "5_minutes": "on",
+        "0_minutes": "on"
+    }
+    
+    # Merge existing into defaults to ensure all keys exist, then override with existing
+    # Actually we just want the current state of THIS key.
+    # If key missing, assume 'on' (default)
+    current_status = prefs.get(key, "on")
+    new_status = "off" if current_status == "on" else "on"
+    
+    prefs[key] = new_status
+    
+    user_ref.update({"notification_preferences": prefs})
+    
+    # Refresh the Menu
+    # Re-calculate full prefs for display
+    full_prefs = {**default_prefs, **prefs}
+    
+    order = [
+         ("12_hours", "12 hours"),
+         ("6_hours", "6 hours"),
+         ("3_hours", "3 hours"),
+         ("1_hour", "1 hour"),
+         ("30_minutes", "30 minutes"),
+         ("15_minutes", "15 minutes"),
+         ("10_minutes", "10 minutes"),
+         ("5_minutes", "5 minutes"),
+         ("0_minutes", "0 minutes")
+    ]
+    
+    keyboard = []
+    for k, label in order:
+        status = full_prefs.get(k, "on")
+        btn_text = f"{label} - {status}"
+        keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"PREF_TOGGLE_{k}")])
+        
+    keyboard.append([InlineKeyboardButton("Go Back", callback_data="SETTINGS_BACK")])
+    
+    try:
+        await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception:
+        pass # Content might be same if clicked too fast
 
 import re
 
@@ -656,6 +787,7 @@ def get_application():
     application.add_handler(CommandHandler("settings", settings_command))
     application.add_handler(CallbackQueryHandler(handle_notification_toggle, pattern="^TOGGLE_NOTIF_"))
     application.add_handler(CallbackQueryHandler(handle_settings_callback, pattern="^SETTINGS_"))
+    application.add_handler(CallbackQueryHandler(handle_notification_preference_toggle, pattern="^PREF_TOGGLE_"))
     
     token_pattern = r"^\s*\d+~[A-Za-z0-9\-_]{20,}\s*$"
     image_filter = filters.PHOTO

@@ -76,8 +76,7 @@ async def sync_user_data(user_id: str, db=None, bot=None) -> int:
                 "course_code": hw['course_code'],
                 "course_name": hw['course_name'],
                 "homework_name": hw['homework_name'],
-                "deadline": hw['deadline'],
-                "time_zone": time_zone
+                "deadline": hw['deadline']
             }
             # Composite key: user_id + assignment_id
             doc_id = f"{user_id}_{hw['assignment_id']}"
@@ -192,16 +191,24 @@ async def check_and_send_reminders(bot):
     # Local import to avoid circular dependency
     from telegram_bot import send_reminder_to_user
     
+    # Cache for user preferences/timezone: {user_id: user_data_dict}
+    user_cache = {}
+    
     for doc in docs:
         hw = doc.to_dict()
         user_id = hw.get("telegram_id")
         
-        # Skip if completed or notification off
+        # Skip if completed or notification off (assignment level toggle)
         if hw.get("is_completed", False): continue
         
+        # Assignment level toggle check
+        val = hw.get("notification", "on")
+        if val == 0 or val == "off": continue
+        
         # Parse Deadline for Deletion Check
+        deadline_str = hw.get('deadline')
+        dt_utc = None
         try:
-             deadline_str = hw.get('deadline')
              if deadline_str:
                   dt_utc = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
                   now = datetime.now().astimezone()
@@ -213,28 +220,73 @@ async def check_and_send_reminders(bot):
         except Exception:
              pass
 
-        val = hw.get("notification", "on")
-        if val == 0 or val == "off": continue
-        
         # Calculate level
         target_level, minutes_left = calculate_notification_level(hw['deadline'])
         current_level = hw.get("notification_level", 0)
         
+        # If no level change, skip
+        if target_level <= current_level:
+            continue
+            
+        # ---------------------------------------------------------
+        # FETCH USER PREFERENCES & TIMEZONE
+        # ---------------------------------------------------------
+        if user_id not in user_cache:
+            user_ref = db.collection("users").document(user_id)
+            u_doc = user_ref.get()
+            if u_doc.exists:
+                user_cache[user_id] = u_doc.to_dict()
+            else:
+                user_cache[user_id] = None # Mark as not found
+        
+        user_data = user_cache[user_id]
+        if not user_data:
+            continue # User deleted?
+            
+        user_timezone = user_data.get("time_zone")
+        prefs = user_data.get("notification_preferences", {})
+        
+        # Default prefs: All ON if missing
+        default_status = "on"
+        
+        # Map target_level to key
+        # 1: 12h, 2: 6h, 3: 3h, 4: 1h, 5: 30m, 6: 15m, 7: 10m, 8: 5m, 9: 0m
+        level_key_map = {
+            1: "12_hours",
+            2: "6_hours",
+            3: "3_hours",
+            4: "1_hour",
+            5: "30_minutes",
+            6: "15_minutes",
+            7: "10_minutes",
+            8: "5_minutes",
+            9: "0_minutes"
+        }
+        
+        key = level_key_map.get(target_level)
+        if key:
+            # Check if this specific notification is ON for user
+            status = prefs.get(key, "on")
+            if status != "on":
+                # Only update the level so we don't check again for THIS level,
+                # but DO NOT send message.
+                doc.reference.update({"notification_level": target_level})
+                continue
+        
+        # ---------------------------------------------------------
+        
         custom_header = ""
         
-        # Determine Custom Header based on target_level
-        # (Only needed if we are sending)
-        if target_level > current_level:
-            if target_level == 9: custom_header = "<b>Missed Assignment!</b>"
-            elif target_level == 8: custom_header = "<b>5 minutes left!</b>"
-            elif target_level == 7: custom_header = "<b>10 minutes left!</b>"
-            elif target_level == 6: custom_header = "<b>15 minutes left!</b>"
-            elif target_level == 5: custom_header = "<b>30 minutes left!</b>"
-            elif target_level == 4: custom_header = "<b>1 hour left!</b>"
-            elif target_level == 3: custom_header = "<b>3 hours left!</b>"
-            elif target_level == 2: custom_header = "<b>6 hours left!</b>"
-            elif target_level == 1: custom_header = "<b>12 hours left!</b>"
-                 
-            success = await send_reminder_to_user(bot, user_id, hw, custom_header)
-            if success:
-                doc.reference.update({"notification_level": target_level})
+        if target_level == 9: custom_header = "<b>Missed Assignment!</b>"
+        elif target_level == 8: custom_header = "<b>5 minutes left!</b>"
+        elif target_level == 7: custom_header = "<b>10 minutes left!</b>"
+        elif target_level == 6: custom_header = "<b>15 minutes left!</b>"
+        elif target_level == 5: custom_header = "<b>30 minutes left!</b>"
+        elif target_level == 4: custom_header = "<b>1 hour left!</b>"
+        elif target_level == 3: custom_header = "<b>3 hours left!</b>"
+        elif target_level == 2: custom_header = "<b>6 hours left!</b>"
+        elif target_level == 1: custom_header = "<b>12 hours left!</b>"
+             
+        success = await send_reminder_to_user(bot, user_id, hw, custom_header, user_timezone)
+        if success:
+            doc.reference.update({"notification_level": target_level})
