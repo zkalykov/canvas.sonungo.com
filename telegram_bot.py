@@ -470,7 +470,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>Security:</b>\n"
         "• Your <b>Canvas Token</b> is encrypted via <b>Google Cloud KMS</b>.\n"
         "• It is decrypted <i>only</i> when syncing assignments and immediately discarded.\n"
-        "• Even the developer cannot decrypt or see your token."
+
     )
     keyboard = [[InlineKeyboardButton("Visit Website", url="https://canvas.sonungo.com")]]
     await update.effective_message.reply_text(about_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
@@ -551,7 +551,7 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
             "<b>Security:</b>\n"
             "• Your <b>Canvas Token</b> is encrypted via <b>Google Cloud KMS</b>.\n"
             "• It is decrypted <i>only</i> when syncing assignments and immediately discarded.\n"
-            "• Even the developer cannot decrypt or see your token."
+
         )
         await query.edit_message_text(about_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(back_btn))
         
