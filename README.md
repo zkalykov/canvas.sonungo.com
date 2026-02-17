@@ -1,5 +1,7 @@
 # Canvas Telegram Bot
 
+![System Diagram](media/system_diagram.png)
+
 A high-performance Telegram bot that helps students track their Canvas assignments. It uses **FastAPI** for the backend and **Google Cloud KMS** for enterprise-grade security.
 
 ## Features
