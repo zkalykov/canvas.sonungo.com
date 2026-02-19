@@ -59,6 +59,34 @@
             z-index: 0;
         }
     </style>
+
+    <!-- Blocking script: extract first video frame before page renders -->
+    <script>
+        (function() {
+            window.__firstFrameDataUrl = null;
+            var video = document.createElement('video');
+            video.muted = true;
+            video.playsInline = true;
+            video.preload = 'auto';
+            video.src = '/media/canvas_reminder_demo.mp4';
+
+            video.addEventListener('loadeddata', function() {
+                try {
+                    var canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    var ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    window.__firstFrameDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                } catch(e) {}
+                // Apply to poster if it already exists in DOM
+                var poster = document.getElementById('videoPoster');
+                if (poster && window.__firstFrameDataUrl) {
+                    poster.src = window.__firstFrameDataUrl;
+                }
+            });
+        })();
+    </script>
 </head>
 <body class="text-white min-h-screen flex flex-col items-center justify-center relative overflow-x-hidden">
     
@@ -113,9 +141,6 @@
                         <source src="/media/canvas_reminder_demo.mp4" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
-                    <!-- Hidden canvas for extracting first frame -->
-                    <canvas id="frameCanvas" style="display: none;"></canvas>
-
                     <!-- Mobile View Demo Button (Hidden on Desktop) -->
                     <button onclick="openDemoModal()" class="md:hidden inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-white/5 text-white font-medium hover:bg-white/10 transition-colors text-lg border border-white/10 w-full justify-center">
                         View Demo
@@ -501,27 +526,17 @@
     </script>
 
     <script>
-        // First-frame poster + video swap logic
+        // Apply preloaded first frame + video swap logic
         (function() {
             const video = document.getElementById('heroVideo');
             const poster = document.getElementById('videoPoster');
-            const canvas = document.getElementById('frameCanvas');
 
-            if (!video || !poster || !canvas) return;
+            if (!video || !poster) return;
 
-            // Once the video has enough data to show the first frame
-            video.addEventListener('loadeddata', function onFirstFrame() {
-                video.removeEventListener('loadeddata', onFirstFrame);
-
-                // Draw first frame to canvas
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // Set the poster image src to the first frame
-                poster.src = canvas.toDataURL('image/png');
-            });
+            // If the head script already extracted the first frame, apply it
+            if (window.__firstFrameDataUrl && !poster.src) {
+                poster.src = window.__firstFrameDataUrl;
+            }
 
             // Once the video can play through without buffering, swap
             video.addEventListener('canplaythrough', function onReady() {
