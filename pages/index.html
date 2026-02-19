@@ -106,11 +106,15 @@
 
                 <!-- Right Side: Video -->
                 <div class="w-full md:w-1/2 flex flex-col items-center justify-center md:items-end md:justify-end gap-6">
-                     <video autoplay loop muted playsinline fetchpriority="high" class="w-full max-w-2xl rounded-xl shadow-2xl border border-white/10 bg-black/50">
-                        <!-- Replace 'path/to/video.mp4' with your actual video file -->
+                    <!-- Poster image (first frame) - shown immediately -->
+                    <img id="videoPoster" alt="Demo preview" class="w-full max-w-2xl rounded-xl shadow-2xl border border-white/10 bg-black/50" style="display: block;">
+                    <!-- Video - hidden until loaded -->
+                    <video id="heroVideo" autoplay loop muted playsinline fetchpriority="high" class="w-full max-w-2xl rounded-xl shadow-2xl border border-white/10 bg-black/50" style="display: none;">
                         <source src="/media/canvas_reminder_demo.mp4" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
+                    <!-- Hidden canvas for extracting first frame -->
+                    <canvas id="frameCanvas" style="display: none;"></canvas>
 
                     <!-- Mobile View Demo Button (Hidden on Desktop) -->
                     <button onclick="openDemoModal()" class="md:hidden inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-white/5 text-white font-medium hover:bg-white/10 transition-colors text-lg border border-white/10 w-full justify-center">
@@ -494,6 +498,41 @@
                 closeDemoModal(null, true);
             }
         });
+    </script>
+
+    <script>
+        // First-frame poster + video swap logic
+        (function() {
+            const video = document.getElementById('heroVideo');
+            const poster = document.getElementById('videoPoster');
+            const canvas = document.getElementById('frameCanvas');
+
+            if (!video || !poster || !canvas) return;
+
+            // Once the video has enough data to show the first frame
+            video.addEventListener('loadeddata', function onFirstFrame() {
+                video.removeEventListener('loadeddata', onFirstFrame);
+
+                // Draw first frame to canvas
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Set the poster image src to the first frame
+                poster.src = canvas.toDataURL('image/png');
+            });
+
+            // Once the video can play through without buffering, swap
+            video.addEventListener('canplaythrough', function onReady() {
+                video.removeEventListener('canplaythrough', onReady);
+
+                // Smooth crossfade: show video, hide poster
+                video.style.display = 'block';
+                poster.style.display = 'none';
+                video.play();
+            });
+        })();
     </script>
 
 </body>
