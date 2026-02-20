@@ -60,33 +60,7 @@
         }
     </style>
 
-    <!-- Blocking script: extract first video frame before page renders -->
-    <script>
-        (function() {
-            window.__firstFrameDataUrl = null;
-            var video = document.createElement('video');
-            video.muted = true;
-            video.playsInline = true;
-            video.preload = 'auto';
-            video.src = '/media/canvas_reminder_demo.mp4';
 
-            video.addEventListener('loadeddata', function() {
-                try {
-                    var canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    var ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    window.__firstFrameDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                } catch(e) {}
-                // Apply to poster if it already exists in DOM
-                var poster = document.getElementById('videoPoster');
-                if (poster && window.__firstFrameDataUrl) {
-                    poster.src = window.__firstFrameDataUrl;
-                }
-            });
-        })();
-    </script>
 </head>
 <body class="text-white min-h-screen flex flex-col items-center justify-center relative overflow-x-hidden">
     
@@ -135,7 +109,7 @@
                 <!-- Right Side: Video -->
                 <div class="w-full md:w-1/2 flex flex-col items-center justify-center md:items-end md:justify-end gap-6">
                     <!-- Poster image (first frame) - shown immediately -->
-                    <img id="videoPoster" alt="Demo preview" class="w-full max-w-2xl rounded-xl shadow-2xl border border-white/10 bg-black/50" style="display: block;">
+                    <img id="videoPoster" src="/media/demo_poster.jpg" alt="" class="w-full max-w-2xl rounded-xl shadow-2xl border border-white/10 bg-black/50" style="display: block;">
                     <!-- Video - hidden until loaded -->
                     <video id="heroVideo" autoplay loop muted playsinline fetchpriority="high" class="w-full max-w-2xl rounded-xl shadow-2xl border border-white/10 bg-black/50" style="display: none;">
                         <source src="/media/canvas_reminder_demo.mp4" type="video/mp4">
@@ -533,10 +507,7 @@
 
             if (!video || !poster) return;
 
-            // If the head script already extracted the first frame, apply it
-            if (window.__firstFrameDataUrl && !poster.src) {
-                poster.src = window.__firstFrameDataUrl;
-            }
+
 
             // Once the video can play through without buffering, swap
             video.addEventListener('canplaythrough', function onReady() {
