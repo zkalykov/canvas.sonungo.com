@@ -266,7 +266,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                  user_ref.set(user_data)
             
-            await status_msg.edit_text(f"Connected: {university_name} - {user_canvas_name}")
+            await status_msg.edit_text(f"Connected: {university_name} - {user_name}")
             
             # Trigger initial sync
             sync_msg = await update.effective_message.reply_text("Syncing your assignments...")
