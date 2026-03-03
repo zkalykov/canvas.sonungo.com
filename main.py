@@ -64,23 +64,23 @@ async def telegram_webhook(request: Request):
     return Response(content="OK", status_code=200)
 
 @app.get("/get_canvas_token")
-def read_get_token():
+async def read_get_token():
     return FileResponse(os.path.join(os.path.dirname(__file__), "pages/get_canvas_token.html"))
 
 @app.get("/")
-def read_root():
+async def read_root():
     return FileResponse(os.path.join(os.path.dirname(__file__), "pages/index.html"))
 
 @app.get("/about")
-def read_about():
+async def read_about():
     return FileResponse(os.path.join(os.path.dirname(__file__), "pages/about.html"))
 
 @app.get("/github")
-def read_github():
+async def read_github():
     return FileResponse(os.path.join(os.path.dirname(__file__), "pages/github.html"))
 
 @app.get("/legal")
-def read_legal():
+async def read_legal():
     return FileResponse(os.path.join(os.path.dirname(__file__), "pages/legal.html"))
 
 
