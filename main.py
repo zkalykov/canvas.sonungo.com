@@ -177,6 +177,5 @@ async def verify_portal_auth(request: Request):
     return {
         "status": "success",
         "canvas_url": canvas_url,
-        "canvas_token": decrypted_token,
-        "telegram_id": user_id
+        "canvas_token": decrypted_token
     }
