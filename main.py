@@ -6,6 +6,10 @@ from telegram import Update
 from db import get_db
 from telegram_bot import get_application
 from retrieve_canvas_data import check_and_send_reminders
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException
+from datetime import datetime, timezone
+from canvas_initialize import decrypt_token
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -44,6 +48,15 @@ async def lifespan(app: FastAPI):
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(lifespan=lifespan)
+
+portal_domain = os.getenv("PORTAL_DOMAIN", "http://localhost:3000").rstrip("/")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[portal_domain],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: Exception):
@@ -115,3 +128,55 @@ async def check_reminders_handler(request: Request):
     
     return {"status": "ok", "message": "Reminders checked"}
 
+@app.post("/api/portal/auth")
+async def verify_portal_auth(request: Request):
+    data = await request.json()
+    authcode = data.get("code")
+    
+    if not authcode:
+        raise HTTPException(status_code=400, detail="Missing auth code")
+        
+    db = get_db()
+    auth_ref = db.collection("auth_codes").document(authcode)
+    auth_doc = auth_ref.get()
+    
+    if not auth_doc.exists:
+        raise HTTPException(status_code=404, detail="Invalid auth code")
+        
+    auth_data = auth_doc.to_dict()
+    
+    if auth_data.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Auth code already used")
+        
+    expires_at = auth_data.get("expires_at")
+    if expires_at and expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Auth code expired")
+        
+    # Mark as used
+    auth_ref.update({"status": "used"})
+    
+    user_id = auth_data.get("user")
+    user_ref = db.collection("users").document(user_id)
+    user_doc = user_ref.get()
+    
+    if not user_doc.exists:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    user_data = user_doc.to_dict()
+    encrypted_token = user_data.get("canvas_token")
+    canvas_url = user_data.get("canvas_url")
+    
+    if not encrypted_token or not canvas_url:
+        raise HTTPException(status_code=400, detail="Incomplete user data")
+        
+    try:
+        decrypted_token = decrypt_token(encrypted_token)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to decrypt token")
+        
+    return {
+        "status": "success",
+        "canvas_url": canvas_url,
+        "canvas_token": decrypted_token,
+        "telegram_id": user_id
+    }

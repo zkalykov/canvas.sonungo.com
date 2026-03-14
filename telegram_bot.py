@@ -9,8 +9,9 @@ from canvasapi.exceptions import InvalidAccessToken
 from db import get_db
 from canvas_initialize import verify_canvas_token, encrypt_token, decrypt_token, search_canvas_institution
 from retrieve_canvas_data import sync_user_data
+import uuid
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from google.cloud.firestore import FieldFilter
 
@@ -530,6 +531,42 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='HTML'
     )
 
+async def portal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    db = get_db()
+    
+    # Check if user exists
+    user_ref = db.collection("users").document(user_id)
+    doc = user_ref.get()
+    
+    if not doc.exists:
+        await update.effective_message.reply_text("You are not registered. Please use /start to register.")
+        return
+        
+    status_msg = await update.effective_message.reply_text("Creating One time login link...")
+    
+    authcode = str(uuid.uuid4())
+    
+    try:
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=1)
+        db.collection("auth_codes").document(authcode).set({
+            "authcode": authcode,
+            "user": user_id,
+            "status": "pending",
+            "expires_at": expires_at
+        })
+        
+        # Read from environment or default to localhost
+        domain = os.getenv("PORTAL_DOMAIN", "http://localhost:3000")
+        # Ensure there's no trailing slash before appending path
+        domain = domain.rstrip("/")
+        link = f"{domain}/auth/{authcode}"
+        
+        await status_msg.edit_text(f"Your one-time login link:\n{link}")
+    except Exception as e:
+        print(f"Error creating portal link: {e}")
+        await status_msg.edit_text("Failed to create the login link. Please try again.")
+
 async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -831,6 +868,7 @@ def get_application():
     
     application.add_handler(CommandHandler("assignments", assignments_command))
     application.add_handler(CommandHandler("status", status_command)) # Added
+    application.add_handler(CommandHandler("portal", portal_command)) # Added
     application.add_handler(CommandHandler("about", about_command))
     application.add_handler(CommandHandler("settings", settings_command))
     application.add_handler(CallbackQueryHandler(handle_notification_toggle, pattern="^TOGGLE_NOTIF_"))
