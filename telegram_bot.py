@@ -563,7 +563,7 @@ async def portal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         link = f"{domain}/auth/{authcode}"
         
         await status_msg.edit_text(
-            f"Your one-time login link:\n<a href=\"{link}\">{link}</a>",
+            f"Your one-time login link (expires in 60 seconds):\n\n<a href=\"{link}\">{link}</a>",
             parse_mode='HTML'
         )
     except Exception as e:
