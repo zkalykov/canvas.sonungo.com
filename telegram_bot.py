@@ -562,7 +562,10 @@ async def portal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         domain = domain.rstrip("/")
         link = f"{domain}/auth/{authcode}"
         
-        await status_msg.edit_text(f"Your one-time login link:\n{link}")
+        await status_msg.edit_text(
+            f"Your one-time login link:\n<a href=\"{link}\">{link}</a>",
+            parse_mode='HTML'
+        )
     except Exception as e:
         print(f"Error creating portal link: {e}")
         await status_msg.edit_text("Failed to create the login link. Please try again.")
