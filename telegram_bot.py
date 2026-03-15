@@ -548,6 +548,17 @@ async def portal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     authcode = str(uuid.uuid4())
     
     try:
+        # Invalidate any existing pending auth codes for this user
+        pending_codes = db.collection("auth_codes").where(filter=FieldFilter("user", "==", user_id)).where(filter=FieldFilter("status", "==", "pending")).stream()
+        batch = db.batch()
+        has_updates = False
+        for code_doc in pending_codes:
+            batch.update(code_doc.reference, {"status": "invalid"})
+            has_updates = True
+            
+        if has_updates:
+            batch.commit()
+
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=1)
         db.collection("auth_codes").document(authcode).set({
             "authcode": authcode,
