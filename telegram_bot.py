@@ -559,7 +559,7 @@ async def portal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if has_updates:
             batch.commit()
 
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=1)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=30)
         db.collection("auth_codes").document(authcode).set({
             "authcode": authcode,
             "user": user_id,
@@ -571,10 +571,18 @@ async def portal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         domain = os.getenv("PORTAL_DOMAIN", "http://localhost:3000")
         # Ensure there's no trailing slash before appending path
         domain = domain.rstrip("/")
+        
+        # Enforce HTTPS if not localhost
+        if not domain.startswith("http://localhost"):
+            if domain.startswith("http://"):
+                domain = domain.replace("http://", "https://", 1)
+            elif not domain.startswith("https://"):
+                domain = f"https://{domain}"
+                
         link = f"{domain}/auth/{authcode}"
         
         await status_msg.edit_text(
-            f"Your one-time login link (expires in 60 seconds):\n\n<a href=\"{link}\">{link}</a>",
+            f"Your one-time login link (expires in 30 seconds):\n\n<a href=\"{link}\">{link}</a>",
             parse_mode='HTML'
         )
     except Exception as e:

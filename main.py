@@ -50,6 +50,13 @@ from fastapi.staticfiles import StaticFiles
 app = FastAPI(lifespan=lifespan)
 
 portal_domain = os.getenv("PORTAL_DOMAIN", "http://localhost:3000").rstrip("/")
+# Enforce HTTPS if not localhost
+if not portal_domain.startswith("http://localhost"):
+    if portal_domain.startswith("http://"):
+        portal_domain = portal_domain.replace("http://", "https://", 1)
+    elif not portal_domain.startswith("https://"):
+        portal_domain = f"https://{portal_domain}"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[portal_domain],
