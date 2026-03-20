@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About | Canvas Reminder Bot</title>
+    <title>Canvas Dashboard | Canvas Reminder Bot</title>
     <link rel="icon" type="image/png" href="/media/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -60,55 +60,90 @@
         }
     </style>
 </head>
-<body class="text-white min-h-screen flex flex-col items-center justify-center relative overflow-x-hidden">
+<body class="text-white min-h-screen flex flex-col items-center relative overflow-x-hidden">
     
     <div class="gradient-bg"></div>
 
-    <main class="relative z-10 w-full">
+    <main class="relative z-10 w-full flex-grow">
         <!-- Hero Section -->
-        <section class="min-h-screen flex flex-col items-center justify-center">
-            <div class="w-full max-w-4xl px-6 py-12 flex flex-col items-center text-center space-y-8">
+        <section class="min-h-screen flex flex-col items-center py-24">
+            <div class="w-full max-w-5xl px-6 flex flex-col items-center text-center space-y-8">
                 <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm transition-colors hover:bg-white/10 mb-2">
                     <span class="relative flex h-2 w-2">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                         <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                     </span>
-                    <span class="text-sm font-medium text-gray-300 tracking-wide">About Us</span>
+                    <span class="text-sm font-medium text-gray-300 tracking-wide">Ecosystem</span>
                 </div>
 
-                <h1 class="text-4xl sm:text-5xl md:text-7xl font-normal tracking-tight text-gray-100 placeholder-opacity-100 drop-shadow-2xl leading-tight">
-                    Simplicity meets utility.
+                <h1 class="text-4xl sm:text-5xl md:text-7xl font-normal tracking-tight text-gray-100 drop-shadow-2xl leading-tight">
+                    Canvas Dashboard.
                 </h1>
                 
-                <div class="space-y-6 text-lg text-gray-400 font-light leading-relaxed max-w-2xl text-left">
-                    <p>
-                        Canvas Reminder Bot was born out of a simple necessity: students missing deadlines because they forgot to check Canvas.
-                    </p>
-                    <p>
-                        We built this tool to bridge the gap between your coursework and your daily communication. By integrating directly into Telegram, we ensure you never miss an assignment again, without the clutter of email or the friction of logging into a web portal.
-                    </p>
-                    <p>
-                        Our mission is to help students succeed by removing the administrative burden of tracking deadlines.
-                    </p>
-                </div>
-                
-                <div class="w-full max-w-4xl pt-8">
-                    <img src="../media/system_diagram.png" alt="System Diagram" class="w-full h-auto rounded-xl shadow-2xl border border-white/10 bg-black/50">
+                <p class="text-xl text-gray-400 font-light max-w-2xl text-center leading-relaxed">
+                    A unified dashboard for Canvas LMS that brings everything a student needs into one clean interface.
+                </p>
+
+                <div class="flex flex-wrap gap-4 mt-8 justify-center">
+                     <a href="https://canvas-dashboard.sonungo.com/" target="_blank" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black font-medium hover:bg-gray-200 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        View Dashboard
+                    </a>
+                    <a href="https://github.com/zkalykov/canvas-dashboard.sonungo.com" target="_blank" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 text-white font-medium hover:bg-white/20 transition-colors border border-white/10">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                        GitHub Repository
+                    </a>
                 </div>
             </div>
             
-            <!-- Scroll Indicator -->
-            <div class="absolute bottom-10 animate-bounce">
-                <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-                </svg>
+            <div class="w-full max-w-5xl px-6 mt-12 mb-4">
+                <img src="../media/dashboard_view.webp" alt="Canvas Dashboard View" fetchpriority="high" loading="eager" class="w-full h-auto rounded-xl shadow-2xl border border-white/10 bg-black/50" onerror="this.src='../media/dashboard_view.png'; this.onerror=null;">
+            </div>
+            
+            <div class="w-full max-w-5xl px-6 mt-16 space-y-16">
+                <!-- Features -->
+                <div>
+                    <h2 class="text-2xl font-semibold mb-6 text-white border-b border-white/10 pb-4">Features</h2>
+                    <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-gray-400">
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">Unified Calendar</strong> All assignments and events in one view
+                        </li>
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">Grades Overview</strong> Current grades across all courses
+                        </li>
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">Upcoming Assignments</strong> Prioritized list of what's due
+                        </li>
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">Assignment Details</strong> Descriptions, files, and rubrics
+                        </li>
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">Workload Heatmap</strong> Visualize busy weeks ahead with semester labels
+                        </li>
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">Due Date Countdowns</strong> Never miss a deadline
+                        </li>
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">To-Do List</strong> Canvas + personal tasks (persisted)
+                        </li>
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">Announcements Feed</strong> All course announcements
+                        </li>
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">Discussion Tracker</strong> Stay on top of discussions
+                        </li>
+                        <li class="p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                            <strong class="text-white block mb-1 text-lg">Dark Mode</strong> Easy on the eyes
+                        </li>
+                    </ul>
+                </div>
+
+
             </div>
         </section>
 
-
-
         <!-- Footer -->
-        <footer class="w-full py-32 bg-gradient-to-b from-transparent via-black/50 to-black relative z-10">
+        <footer class="w-full py-16 bg-gradient-to-b from-transparent via-black/50 to-black relative z-10 mt-16">
             <div class="max-w-7xl mx-auto px-6 text-center">
                 <p class="text-gray-500 font-light text-sm">
                     © Canvas Reminder Bot. Built by <a href="https://zhyrgalbek.me" class="hover:text-white transition-colors">zhyrgalbek.me</a>.
@@ -138,8 +173,9 @@
                 <a href="/get_canvas_token" class="shrink-0 px-4 py-2.5 rounded-full text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all duration-200 whitespace-nowrap">
                     How to get Canvas Token
                 </a>
+
                 
-                <a href="/about" class="shrink-0 px-4 py-2.5 rounded-full text-sm font-medium text-white bg-white/10 hover:bg-white/20 active:scale-95 transition-all duration-200 border border-white/5 whitespace-nowrap">
+                <a href="/about" class="shrink-0 px-4 py-2.5 rounded-full text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all duration-200 whitespace-nowrap">
                     About
                 </a>
 
@@ -170,14 +206,12 @@
             if (!nav || !leftBtn || !rightBtn) return;
 
             function updateScrollButtons() {
-                // Left button logic
                 if (nav.scrollLeft > 10) {
                     leftBtn.classList.remove('opacity-0', 'pointer-events-none');
                 } else {
                     leftBtn.classList.add('opacity-0', 'pointer-events-none');
                 }
 
-                // Right button logic
                 if (nav.scrollWidth - nav.scrollLeft - nav.clientWidth > 2) {
                     rightBtn.classList.remove('opacity-0', 'pointer-events-none');
                 } else {
@@ -185,13 +219,8 @@
                 }
             }
 
-            // Initial check
             setTimeout(updateScrollButtons, 100);
-
-            // On scroll
             nav.addEventListener('scroll', updateScrollButtons);
-            
-            // On resize
             window.addEventListener('resize', updateScrollButtons);
         });
 
@@ -206,6 +235,5 @@
             }
         }
     </script>
-
 </body>
 </html>
