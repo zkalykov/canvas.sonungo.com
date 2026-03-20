@@ -104,6 +104,11 @@ async def read_legal():
     return FileResponse(os.path.join(os.path.dirname(__file__), "pages/legal.html"))
 
 
+@app.get("/dashboard")
+async def read_dashboard():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "pages/dashboard.html"))
+
+
 @app.get("/check_connection")
 def check_connection():
     try:
