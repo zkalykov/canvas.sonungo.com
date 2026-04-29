@@ -107,3 +107,4 @@ We use a **Blind Envelope** encryption strategy:
 4.  Decryption *only* happens individually during the reminder check process and requires the specific Service Account permissions.
 
 This ensures that even if the database is leaked, the tokens remain useless without access to the Google Cloud KMS hardware key.
+We made it to make student's life more easy. Thank you!
