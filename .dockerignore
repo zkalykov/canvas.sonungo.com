@@ -1,9 +1,35 @@
-__pycache__
-.venv
-venv
+# Git
 .git
+.gitignore
+
+# Environments & Virtual Environments
 .env
+.env.*
+.venv/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.egg
+*.egg-info/
+
+# Node
+node_modules/
+npm-debug.log
+
+# Secrets & Keys
 service_account.json
 credentials.json
+client_secret.json
+*.pem
+*.key
+
+# Editor & OS
+.vscode/
+.idea/
+.DS_Store
