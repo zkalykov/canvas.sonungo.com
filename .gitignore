@@ -17,6 +17,7 @@ dist/
 
 # Node
 node_modules/
+node_modules
 
 # Secrets & Keys
 service_account.json
