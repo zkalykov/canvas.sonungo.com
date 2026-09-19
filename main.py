@@ -1,15 +1,41 @@
 import os
+import secrets
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, Response
-from telegram import Update
+from telegram import BotCommand, Update
 from db import get_db
 from telegram_bot import get_application
 from retrieve_canvas_data import check_and_send_reminders
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
 from datetime import datetime, timezone
-from canvas_initialize import decrypt_token
+from login_approval import create_login_request, check_login_request
+from web_sessions import check_session, cleanup_login_records, end_session
+
+# Commands shown in Telegram's "/" menu.
+BOT_COMMANDS = [
+    BotCommand("start", "Connect your Canvas account"),
+    BotCommand("assignments", "Your upcoming assignments"),
+    BotCommand("portal", "Log in to the Canvas Dashboard website"),
+    BotCommand("sessions", "See and log out your website sessions"),
+    BotCommand("status", "Your connection status"),
+    BotCommand("settings", "Notifications and your data"),
+    BotCommand("about", "What this bot stores and why"),
+]
+
+
+def require_portal_key(request: Request):
+    """
+    The /api/portal/* endpoints are for the Canvas Dashboard's server only. With
+    PORTAL_API_KEY set, calls must send the same value in the X-Portal-Key header.
+    """
+    expected = os.getenv("PORTAL_API_KEY", "").strip()
+    if not expected:
+        return
+    given = request.headers.get("x-portal-key", "")
+    if not secrets.compare_digest(given.encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="Invalid portal key")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,6 +48,13 @@ async def lifespan(app: FastAPI):
     # Initialize and start the bot
     await bot_app.initialize()
     await bot_app.start()
+
+    try:
+        await bot_app.bot.set_my_commands(BOT_COMMANDS)
+    except Exception as e:
+        print(f"Could not set the bot's command menu: {e}")
+    if not os.getenv("PORTAL_API_KEY", "").strip():
+        print("PORTAL_API_KEY is not set: the /api/portal endpoints accept calls from anyone.")
     
     webhook_url = os.getenv("WEBHOOK_URL")
     
@@ -137,57 +170,51 @@ async def check_reminders_handler(request: Request):
     # Trigger reminder check logic
     # This runs sync (retrieve_all) + checks + sends.
     await check_and_send_reminders(bot_app.bot)
+
+    # Housekeeping: old one-time codes, login requests and unused sessions.
+    try:
+        print(f"Cleaned up login records: {cleanup_login_records()}")
+    except Exception as e:
+        print(f"Login record cleanup failed: {e}")
     
     return {"status": "ok", "message": "Reminders checked"}
 
-@app.post("/api/portal/auth")
-async def verify_portal_auth(request: Request):
+@app.post("/api/portal/login/request")
+async def portal_login_request(request: Request):
+    """Web dashboard opened a one-time link: ask the user on Telegram to approve."""
+    require_portal_key(request)
     data = await request.json()
-    authcode = data.get("code")
-    
-    if not authcode:
+    code = str(data.get("code") or "").strip()
+    if not code:
         raise HTTPException(status_code=400, detail="Missing auth code")
-        
-    db = get_db()
-    auth_ref = db.collection("auth_codes").document(authcode)
-    auth_doc = auth_ref.get()
-    
-    if not auth_doc.exists:
-        raise HTTPException(status_code=404, detail="Invalid auth code")
-        
-    auth_data = auth_doc.to_dict()
-    
-    if auth_data.get("status") != "pending":
-        raise HTTPException(status_code=400, detail="Auth code already used")
-        
-    expires_at = auth_data.get("expires_at")
-    if expires_at and expires_at < datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="Auth code expired")
-        
-    # Mark as used
-    auth_ref.update({"status": "used"})
-    
-    user_id = auth_data.get("user")
-    user_ref = db.collection("users").document(user_id)
-    user_doc = user_ref.get()
-    
-    if not user_doc.exists:
-        raise HTTPException(status_code=404, detail="User not found")
-        
-    user_data = user_doc.to_dict()
-    encrypted_token = user_data.get("canvas_token")
-    canvas_url = user_data.get("canvas_url")
-    
-    if not encrypted_token or not canvas_url:
-        raise HTTPException(status_code=400, detail="Incomplete user data")
-        
-    try:
-        decrypted_token = decrypt_token(encrypted_token)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to decrypt token")
-        
-    return {
-        "status": "success",
-        "canvas_url": canvas_url,
-        "canvas_token": decrypted_token
-    }
+    return await create_login_request(
+        request.app.state.bot_app.bot,
+        code,
+        str(data.get("device") or ""),
+        str(data.get("location") or ""),
+        str(data.get("ip") or ""),
+    )
+
+
+@app.post("/api/portal/login/status")
+async def portal_login_status(request: Request):
+    """Web dashboard polls here; returns Canvas credentials once the user approved."""
+    require_portal_key(request)
+    data = await request.json()
+    return check_login_request(str(data.get("request_id") or ""), str(data.get("poll_token") or ""))
+
+
+@app.post("/api/portal/session/check")
+async def portal_session_check(request: Request):
+    """Web dashboard asks whether a session is still active (not logged out in Telegram, not idle)."""
+    require_portal_key(request)
+    data = await request.json()
+    return check_session(str(data.get("session_id") or ""), str(data.get("session_secret") or ""))
+
+
+@app.post("/api/portal/session/end")
+async def portal_session_end(request: Request):
+    """Web dashboard logged out."""
+    require_portal_key(request)
+    data = await request.json()
+    return end_session(str(data.get("session_id") or ""), str(data.get("session_secret") or ""))

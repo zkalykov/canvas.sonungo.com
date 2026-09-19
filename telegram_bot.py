@@ -9,6 +9,8 @@ from canvasapi.exceptions import InvalidAccessToken
 from db import get_db
 from canvas_initialize import verify_canvas_token, encrypt_token, decrypt_token, search_canvas_institution
 from retrieve_canvas_data import sync_user_data
+from login_approval import handle_login_approval
+from web_sessions import delete_login_data, end_all_sessions, handle_session_end, sessions_command
 import uuid
 import warnings
 from datetime import datetime, timedelta, timezone
@@ -48,7 +50,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 return ConversationHandler.END
             
-            await update.effective_message.reply_text("Welcome back! You are already connected.")
+            await update.effective_message.reply_text(
+                "Welcome back! You are already connected.\n\n"
+                "/portal logs you in to the Canvas Dashboard website, and /sessions shows where you're logged in."
+            )
             return ConversationHandler.END
     
     await update.effective_message.reply_text(
@@ -256,6 +261,7 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "time_zone": time_zone
             }
             
+            ended_sessions = 0
             if user_ref.get().exists:
                  # Update only changed fields
                  user_ref.update({
@@ -264,10 +270,15 @@ async def handle_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                      "canvas_token_status": "valid",
                      "time_zone": time_zone
                  })
+                 # Website sessions still hold the old token: log them out.
+                 ended_sessions = end_all_sessions(user_id, "token_changed")
             else:
                  user_ref.set(user_data)
             
-            await status_msg.edit_text(f"Connected: {university_name} - {user_name}")
+            await status_msg.edit_text(
+                f"Connected: {university_name} - {user_name}"
+                + (f"\n\nYour token changed, so {ended_sessions} website session(s) were logged out." if ended_sessions else "")
+            )
             
             # Trigger initial sync
             sync_msg = await update.effective_message.reply_text("Syncing your assignments...")
@@ -460,19 +471,26 @@ async def handle_notification_toggle(update: Update, context: ContextTypes.DEFAU
     else:
         await query.answer("Assignment not found.", show_alert=True)
 
-async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    about_text = (
+ABOUT_TEXT = (
         "<b>Canvas Bot</b>\n\n"
         "This bot helps you stay on top of your Canvas assignments.\n\n"
         "<b>Data We Save:</b>\n"
         "• Telegram ID (to identify you)\n"
         "• Canvas URL (to convert deadlines)\n"
-        "• Homework Data (Name, Course, Deadline)\n\n"
+        "• Homework Data (Name, Course, Deadline)\n"
+        "• Website logins: device, approximate location, IP address and time, to show them in /sessions "
+        "(deleted after 30 days without use)\n\n"
         "<b>Security:</b>\n"
         "• Your <b>Canvas Token</b> is encrypted via <b>Google Cloud KMS</b>.\n"
-        "• It is decrypted <i>only</i> when syncing assignments and immediately discarded.\n"
+        "• It is decrypted when syncing assignments, and when you approve a login to the Canvas Dashboard "
+        "website: then it goes, once, to the dashboard's server, which keeps it in an encrypted cookie for that session.\n"
+        "• Every website login must be approved here, and /sessions can log any of them out.\n"
 
-    )
+)
+
+
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    about_text = ABOUT_TEXT
     keyboard = [[InlineKeyboardButton("Visit Website", url="https://canvas.sonungo.com")]]
     await update.effective_message.reply_text(about_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -582,7 +600,7 @@ async def portal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         link = f"{domain}/auth/{authcode}"
         
         await status_msg.edit_text(
-            f"Your one-time login link (expires in 30 seconds):\n\n<a href=\"{link}\">{link}</a>",
+            f"Your one-time login link (expires in 30 seconds):\n\n<a href=\"{link}\">{link}</a>\n\nAfter you open it, I'll ask you here to approve it with view-only or full access.\n\nSee or log out your sessions with /sessions.",
             parse_mode='HTML'
         )
     except Exception as e:
@@ -600,18 +618,7 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
     
     if data == "SETTINGS_ABOUT":
         back_btn = [[InlineKeyboardButton("Back", callback_data="SETTINGS_BACK")]]
-        about_text = (
-            "<b>Canvas Bot</b>\n\n"
-            "This bot helps you stay on top of your Canvas assignments.\n\n"
-            "<b>Data We Save:</b>\n"
-            "• Telegram ID (to identify you)\n"
-            "• Canvas URL (to convert deadlines)\n"
-            "• Homework Data (Name, Course, Deadline)\n\n"
-            "<b>Security:</b>\n"
-            "• Your <b>Canvas Token</b> is encrypted via <b>Google Cloud KMS</b>.\n"
-            "• It is decrypted <i>only</i> when syncing assignments and immediately discarded.\n"
-
-        )
+        about_text = ABOUT_TEXT
         await query.edit_message_text(about_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(back_btn))
         
     elif data == "SETTINGS_BACK":
@@ -634,7 +641,8 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
             "This will delete your:\n"
             "- Canvas Token connection\n"
             "- Saved University URL\n"
-            "- All synced homework data\n\n"
+            "- All synced homework data\n"
+            "- Website logins, and log out every Canvas Dashboard session\n\n"
             "This action cannot be undone."
         )
         await query.edit_message_text(warn_text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
@@ -644,6 +652,9 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
         
         # Delete User
         db.collection("users").document(user_id).delete()
+
+        # Website sessions, login requests and one-time codes (logs out every website session)
+        delete_login_data(user_id)
         
         # Delete Homeworks
         # Note: Ideally usage of batch commits for atomic operations
@@ -664,7 +675,9 @@ async def handle_settings_callback(update: Update, context: ContextTypes.DEFAULT
         if count > 0:
             batch.commit()
             
-        await query.edit_message_text(f"Account and {deleted_count} assignments deleted.\n\nType /start to restart.")
+        await query.edit_message_text(
+            f"Account and {deleted_count} assignments deleted. Your website sessions were logged out.\n\nType /start to restart."
+        )
         
     elif data == "SETTINGS_NOTIF_RESET":
         user_ref = db.collection("users").document(user_id)
@@ -896,6 +909,9 @@ def get_application():
     application.add_handler(CallbackQueryHandler(handle_notification_toggle, pattern="^TOGGLE_NOTIF_"))
     application.add_handler(CallbackQueryHandler(handle_settings_callback, pattern="^SETTINGS_"))
     application.add_handler(CallbackQueryHandler(handle_notification_preference_toggle, pattern="^PREF_TOGGLE_"))
+    application.add_handler(CallbackQueryHandler(handle_login_approval, pattern="^LOGIN_(VIEW|FULL|APPROVE|DENY)_"))
+    application.add_handler(CommandHandler("sessions", sessions_command))
+    application.add_handler(CallbackQueryHandler(handle_session_end, pattern="^SESSION_END_"))
     
     token_pattern = r"^\s*\d+~[A-Za-z0-9\-_]{20,}\s*$"
     image_filter = filters.PHOTO

@@ -94,6 +94,7 @@
                 <ul class="list-disc pl-5 space-y-2">
                     <li><strong>Telegram Metadata:</strong> We automatically receive your Telegram User ID, username, and first/last name when you interact with the bot. This is used to identify your account and send you personalized notifications.</li>
                     <li><strong>Canvas LMS Data:</strong> To fetch your assignments, we require your Canvas API Token and your university's Canvas URL. We also process data regarding your courses and assignments to generate reminders.</li>
+                    <li><strong>Canvas Dashboard Logins:</strong> When you log in to the Canvas Dashboard website, we record the device (browser and operating system), approximate location, IP address and time of each login, so the bot can ask you to approve it and list it in /sessions. The approximate location may be looked up from your IP address with ipapi.co.</li>
                     <li><strong>Usage Data:</strong> We may log basic interaction data (commands used, errors encountered) to help us debug and improve the bot's performance.</li>
                 </ul>
             </section>
@@ -102,6 +103,8 @@
                 <h2 class="text-2xl font-semibold text-white">3. How We Use Your Information</h2>
                 <p>We use the collected information for the following purposes:</p>
                 <ul class="list-disc pl-5 space-y-2">
+                    <li><strong>Reminders:</strong> Your Canvas token is decrypted to sync your assignments and send deadline reminders.</li>
+                    <li><strong>Canvas Dashboard:</strong> Only after you approve a login in Telegram, your Canvas token is sent once, over an encrypted connection, to the Canvas Dashboard's server. It keeps the token in an encrypted cookie for that session and uses it to show your Canvas data. You can end any session with /sessions; sessions also end after one hour without use.</li>
                     <li><strong>Statistics:</strong> We may use your data to generate aggregated statistics, such as the total number of users and activity volume, to understand platform usage.</li>
                 </ul>
             </section>
@@ -109,14 +112,14 @@
             <section class="space-y-4">
                 <h2 class="text-2xl font-semibold text-white">4. Data Retention</h2>
                 <p>
-                    We retain your Canvas API Token and related settings for as long as you use our service. Authentication tokens are stored securely. You can delete your stored data at any time by accessing the Settings menu within the Telegram bot.
+                    We retain your Canvas API Token and related settings for as long as you use our service. Authentication tokens are stored securely. One-time login links and login requests are deleted within a day of expiring, and website session records within 30 days of their last use. You can delete your stored data at any time by accessing the Settings menu within the Telegram bot; this also logs out every Canvas Dashboard session.
                 </p>
             </section>
 
             <section class="space-y-4">
                 <h2 class="text-2xl font-semibold text-white">5. Data Sharing</h2>
                 <p>
-                    <strong>We do not sell, trade, or rent your personal identification information to others.</strong> We do not share your Canvas Token or assignment data with third parties, except as required by law or to protect our rights.
+                    <strong>We do not sell, trade, or rent your personal identification information to others.</strong> We do not share your Canvas Token or assignment data with third parties, except as required by law or to protect our rights. The Canvas Dashboard website is part of this service, not a third party.
                 </p>
             </section>
 

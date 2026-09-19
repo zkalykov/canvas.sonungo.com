@@ -34,6 +34,7 @@ The application is live at: [https://canvas.sonungo.com](https://canvas.sonungo.
 - **No Manual Setup** — The bot syncs directly with Canvas to know exactly when assignments are due and whether they have been completed.
 - **Open Source** — The entire codebase is publicly available on GitHub for full transparency.
 - **Lightweight & Fast** — Built on FastAPI and Python 3.11 for minimal overhead and quick response times.
+- **Web dashboard login you control** — `/portal` sends a one-time link; each login must be approved in Telegram as View only or Full access (the message shows device, location, IP and time). `/sessions` lists where you're logged in and logs out one session or all. Sessions also end after 1 hour without use (`login_approval.py`, `web_sessions.py`; dashboard endpoints `/api/portal/login/*` and `/api/portal/session/check|end`).
 
 ---
 
@@ -82,7 +83,13 @@ Create a `.env` file in the root directory:
 PROJECT_ID=your-google-cloud-project-id
 TELEGRAM_BOT_API=your-telegram-bot-token
 DATABASE_NAME=your-database-name  # optional, defaults to (default)
+PORTAL_DOMAIN=https://your-dashboard-domain  # where /portal login links point (the Canvas Dashboard)
+PORTAL_API_KEY=a-long-random-secret  # shared with the Canvas Dashboard; openssl rand -hex 32
 ```
+
+`PORTAL_API_KEY` must be the same value on the Canvas Dashboard. With it set, the
+`/api/portal/*` endpoints only answer calls from the dashboard's server. To turn it
+on without breaking logins, set it on the dashboard first, then here.
 
 > Note: No encryption key is stored here. All encryption is handled entirely by Google Cloud KMS.
 
@@ -114,6 +121,9 @@ Configure a Cloud Scheduler job to trigger reminders:
 - **URL:** `https://your-cloud-run-url.com/check_reminder`
 - **Method:** `POST`
 - **Frequency:** `*/5 * * * *` (Every 5 minutes)
+
+The same job also deletes expired one-time login links and login requests (after a
+day) and website sessions unused for 30 days.
 
 ---
 
